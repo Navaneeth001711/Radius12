@@ -1,0 +1,2237 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0" />
+<title>Radius — Local Service Finder</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@500;600;700&family=IBM+Plex+Sans:wght@400;500;600&family=IBM+Plex+Mono:wght@400;500&display=swap" rel="stylesheet">
+<style>
+  :root{
+    --bg:#12141c;
+    --surface:#1a1e2b;
+    --surface-2:#232838;
+    --border:#2a2f42;
+    --text:#edeef3;
+    --text-muted:#8890a6;
+    --accent:#e8a33d;
+    --accent-dim:#8a6428;
+    --accent-2:#4fd1c5;
+    --danger:#e8636b;
+    --radius:14px;
+  }
+  *{box-sizing:border-box;}
+  html,body{margin:0;padding:0;}
+  body{
+    background:radial-gradient(circle at 20% -10%, #1c2035 0%, var(--bg) 55%);
+    color:var(--text);
+    font-family:'IBM Plex Sans', sans-serif;
+    line-height:1.5;
+    min-height:100vh;
+  }
+  h1,h2,h3,.display{font-family:'Space Grotesk', sans-serif; letter-spacing:-0.01em;}
+  .mono{font-family:'IBM Plex Mono', monospace;}
+  a{color:inherit;}
+  button{font-family:inherit;}
+  :focus-visible{outline:2px solid var(--accent-2); outline-offset:2px;}
+  .container{max-width:1120px; margin:0 auto; padding:0 24px;}
+  .section{padding:64px 0;}
+  .eyebrow{
+    display:inline-flex; align-items:center; gap:8px;
+    font-family:'IBM Plex Mono', monospace; font-size:12px; letter-spacing:0.12em;
+    text-transform:uppercase; color:var(--accent); margin-bottom:14px;
+  }
+  .eyebrow::before{content:''; width:16px; height:1px; background:var(--accent);}
+
+  /* Navbar */
+  .navbar{
+    position:sticky; top:0; z-index:50;
+    background:rgba(18,20,28,0.88); backdrop-filter:blur(10px);
+    border-bottom:1px solid var(--border);
+  }
+  .navbar-inner{
+    max-width:1120px; margin:0 auto; padding:14px 24px;
+    display:flex; align-items:center; justify-content:space-between; gap:16px; flex-wrap:wrap;
+  }
+  .navbar-left{display:flex; align-items:center; gap:10px;}
+  .back-btn{
+    display:inline-flex; align-items:center; justify-content:center;
+    width:36px; height:36px; border-radius:50%;
+    background:var(--surface-2); border:1px solid var(--border); color:var(--text);
+    cursor:pointer; font-size:16px; flex-shrink:0;
+  }
+  .back-btn:hover{border-color:var(--accent); color:var(--accent);}
+  .back-btn[disabled]{opacity:0.35; cursor:default;}
+  .back-btn[disabled]:hover{border-color:var(--border); color:var(--text);}
+  .logo{
+    font-family:'Space Grotesk', sans-serif; font-weight:700; font-size:20px;
+    display:flex; align-items:center; gap:8px; cursor:pointer; user-select:none;
+  }
+  .logo-mark{
+    width:26px; height:26px; border-radius:50%;
+    background:radial-gradient(circle at 35% 30%, var(--accent), var(--accent-dim));
+    box-shadow:0 0 14px 2px rgba(232,163,61,0.45);
+    position:relative;
+  }
+  .nav-links{display:flex; align-items:center; gap:6px; flex-wrap:wrap;}
+  .nav-link{
+    padding:8px 14px; border-radius:999px; font-size:14px; cursor:pointer;
+    color:var(--text-muted); border:1px solid transparent; background:none;
+  }
+  .nav-link:hover{color:var(--text);}
+  .nav-link.active{color:var(--text); background:var(--surface-2); border-color:var(--border);}
+
+  .nav-search{
+    display:flex; align-items:center; gap:8px;
+    background:var(--surface-2); border:1px solid var(--border); border-radius:999px;
+    padding:6px 6px 6px 14px; min-width:200px; flex:1; max-width:320px;
+    position:relative;
+  }
+  .nav-search input{
+    background:none; border:none; outline:none; color:var(--text); font-size:13.5px; flex:1; min-width:0;
+  }
+  .nav-search input::placeholder{color:var(--text-muted);}
+  .nav-search button{
+    background:var(--accent); color:#1b1305; border:none; border-radius:999px;
+    width:28px; height:28px; display:flex; align-items:center; justify-content:center;
+    cursor:pointer; flex-shrink:0; font-size:13px;
+  }
+  .search-suggest{
+    position:absolute; top:calc(100% + 8px); left:0; right:0;
+    background:var(--surface); border:1px solid var(--border); border-radius:12px;
+    box-shadow:0 12px 32px rgba(0,0,0,0.45); overflow:hidden; z-index:60;
+    max-height:360px; overflow-y:auto;
+  }
+  .search-suggest-item{
+    display:flex; align-items:center; gap:10px; padding:10px 14px; cursor:pointer;
+    border-bottom:1px solid var(--border); font-size:13.5px;
+  }
+  .search-suggest-item:last-child{border-bottom:none;}
+  .search-suggest-item:hover, .search-suggest-item.hl{background:var(--surface-2);}
+  .search-suggest-item .ssi-icon{font-size:16px; flex-shrink:0;}
+  .search-suggest-item .ssi-main{flex:1; min-width:0;}
+  .search-suggest-item .ssi-title{color:var(--text); font-weight:500;}
+  .search-suggest-item .ssi-sub{color:var(--text-muted); font-size:12px;}
+  .search-suggest-item .ssi-price{color:var(--accent-2); font-family:'IBM Plex Mono', monospace; font-size:12px; flex-shrink:0;}
+  .search-suggest-empty{padding:14px; color:var(--text-muted); font-size:13px; text-align:center;}
+  .search-suggest-head{padding:8px 14px 4px; font-size:11px; text-transform:uppercase; letter-spacing:0.08em; color:var(--text-muted); font-family:'IBM Plex Mono', monospace;}
+
+  /* Buttons */
+  .btn{
+    display:inline-flex; align-items:center; justify-content:center; gap:8px;
+    padding:11px 20px; border-radius:10px; font-size:14px; font-weight:600;
+    cursor:pointer; border:1px solid transparent; transition:transform .15s ease, opacity .15s ease;
+  }
+  .btn:active{transform:scale(0.97);}
+  .btn-primary{background:var(--accent); color:#1b1305;}
+  .btn-primary:hover{opacity:0.92;}
+  .btn-ghost{background:transparent; border-color:var(--border); color:var(--text);}
+  .btn-ghost:hover{border-color:var(--accent);}
+  .btn-block{width:100%;}
+  .btn-sm{padding:8px 14px; font-size:13px;}
+  .btn[disabled]{opacity:0.5; cursor:not-allowed;}
+
+  /* Hero */
+  .hero{
+    display:grid; grid-template-columns:1.1fr 1fr; gap:48px; align-items:center;
+    padding:64px 0 40px;
+  }
+  .hero h1{font-size:44px; margin:0 0 18px; line-height:1.08;}
+  .hero p.sub{color:var(--text-muted); font-size:16px; max-width:460px; margin:0 0 28px;}
+  .search-card{
+    background:var(--surface); border:1px solid var(--border); border-radius:var(--radius);
+    padding:18px; display:flex; gap:10px; flex-wrap:wrap; position:relative;
+  }
+  .search-card select, .search-card input{flex:1; min-width:140px;}
+  .field{
+    background:var(--surface-2); border:1px solid var(--border); color:var(--text);
+    border-radius:8px; padding:11px 12px; font-size:14px; width:100%;
+  }
+  .stat-line{margin-top:16px; color:var(--text-muted); font-size:13px; font-family:'IBM Plex Mono', monospace;}
+
+  /* 3D orbit scene */
+  .orbit-scene{position:relative; width:340px; height:340px; margin:0 auto; perspective:1000px;}
+  .pulse-ring{
+    position:absolute; top:50%; left:50%; width:20px; height:20px; margin:-10px;
+    border-radius:50%; border:1px solid var(--accent); animation:pulse 3.6s ease-out infinite;
+  }
+  .pulse-ring.d2{animation-delay:1.2s;}
+  .pulse-ring.d3{animation-delay:2.4s;}
+  @keyframes pulse{0%{width:20px;height:20px;margin:-10px;opacity:.75;} 100%{width:320px;height:320px;margin:-160px;opacity:0;}}
+  .orbit-center{
+    position:absolute; top:50%; left:50%; width:16px; height:16px; margin:-8px;
+    border-radius:50%; background:var(--accent); box-shadow:0 0 24px 8px rgba(232,163,61,.55); z-index:3;
+  }
+  .orbit-ring{
+    position:absolute; top:0; left:0; width:100%; height:100%;
+    transform-style:preserve-3d; animation:spin 20s linear infinite;
+  }
+  @keyframes spin{from{transform:rotateY(0deg) rotateX(6deg);} to{transform:rotateY(360deg) rotateX(6deg);}}
+  .orbit-icon{
+    position:absolute; top:50%; left:50%; width:54px; height:54px; margin:-27px;
+    border-radius:50%; background:var(--surface-2); border:1px solid var(--border);
+    display:flex; align-items:center; justify-content:center; font-size:22px;
+    box-shadow:0 0 18px rgba(0,0,0,0.35);
+  }
+  @media (prefers-reduced-motion: reduce){
+    .orbit-ring, .pulse-ring{animation:none !important;}
+  }
+
+  /* Grids and cards */
+  .grid{display:grid; gap:18px;}
+  .grid-4{grid-template-columns:repeat(4, 1fr);}
+  .grid-3{grid-template-columns:repeat(3, 1fr);}
+  .grid-2{grid-template-columns:repeat(2, 1fr);}
+  .card{
+    background:var(--surface); border:1px solid var(--border); border-radius:var(--radius); padding:20px;
+  }
+  .category-card{
+    cursor:pointer; text-align:center; transition:border-color .15s ease, transform .15s ease;
+  }
+  .category-card:hover{border-color:var(--accent); transform:translateY(-2px);}
+  .category-card .icon{font-size:28px; display:block; margin-bottom:10px;}
+  .category-card .name{font-size:14px; font-weight:600;}
+
+  .provider-card{display:flex; flex-direction:column; gap:10px;}
+  .provider-top{display:flex; gap:12px; align-items:center;}
+  .avatar{
+    width:48px; height:48px; border-radius:50%; flex-shrink:0;
+    display:flex; align-items:center; justify-content:center; font-weight:700;
+    background:linear-gradient(135deg, var(--accent), #6b4a1f); color:#1b1305; font-size:15px;
+  }
+  .provider-name{font-weight:600; font-size:15px;}
+  .provider-meta{font-size:12.5px; color:var(--text-muted);}
+  .tag{
+    display:inline-block; font-size:11.5px; padding:3px 9px; border-radius:999px;
+    background:var(--surface-2); border:1px solid var(--border); color:var(--text-muted);
+  }
+  .stars{color:var(--accent); font-size:14px; letter-spacing:1px;}
+  .price-tag{font-family:'IBM Plex Mono', monospace; color:var(--accent-2); font-size:13px;}
+
+  /* Forms */
+  label{display:block; font-size:13px; color:var(--text-muted); margin-bottom:6px;}
+  .form-group{margin-bottom:16px;}
+  .tabs{display:flex; gap:6px; margin-bottom:22px; background:var(--surface-2); border-radius:10px; padding:4px; border:1px solid var(--border);}
+  .tab-btn{flex:1; padding:9px; border:none; background:none; color:var(--text-muted); border-radius:8px; font-weight:600; font-size:14px; cursor:pointer;}
+  .tab-btn.active{background:var(--accent); color:#1b1305;}
+  .auth-card{max-width:420px; margin:40px auto;}
+
+  /* Timeline */
+  .timeline{display:flex; justify-content:space-between; position:relative; margin:34px 0 10px; padding:0 6px;}
+  .timeline::before{
+    content:''; position:absolute; top:11px; left:20px; right:20px; height:2px; background:var(--border); z-index:0;
+  }
+  .timeline-node{position:relative; z-index:1; display:flex; flex-direction:column; align-items:center; gap:8px; flex:1;}
+  .timeline-dot{width:24px; height:24px; border-radius:50%; background:var(--surface-2); border:2px solid var(--border); transition:all .2s ease;}
+  .timeline-node.done .timeline-dot{background:var(--accent-2); border-color:var(--accent-2);}
+  .timeline-node.active .timeline-dot{background:var(--accent); border-color:var(--accent); box-shadow:0 0 0 5px rgba(232,163,61,0.18);}
+  .timeline-label{font-size:11.5px; color:var(--text-muted); text-align:center; max-width:78px;}
+  .timeline-node.done .timeline-label, .timeline-node.active .timeline-label{color:var(--text);}
+
+  .badge-stage{
+    display:inline-flex; align-items:center; gap:6px; padding:5px 12px; border-radius:999px;
+    font-size:12px; font-weight:600; background:var(--surface-2); border:1px solid var(--border);
+  }
+  .badge-stage.dot::before{content:''; width:7px; height:7px; border-radius:50%; background:var(--accent);}
+
+  .star-input{display:flex; gap:6px; font-size:26px; margin-bottom:6px;}
+  .star-btn{cursor:pointer; color:var(--border); background:none; border:none; padding:0; line-height:1;}
+  .star-btn.filled{color:var(--accent);}
+
+  .review-item{border-top:1px solid var(--border); padding:14px 0;}
+  .review-item:first-child{border-top:none; padding-top:0;}
+
+  .toast-root{position:fixed; bottom:24px; right:24px; z-index:200; display:flex; flex-direction:column; gap:10px;}
+  .toast{
+    background:var(--surface-2); border:1px solid var(--accent); color:var(--text);
+    padding:12px 18px; border-radius:10px; font-size:13.5px; opacity:0; transform:translateY(8px);
+    transition:all .25s ease; box-shadow:0 8px 24px rgba(0,0,0,0.35);
+  }
+  .toast.show{opacity:1; transform:translateY(0);}
+
+  .footer{border-top:1px solid var(--border); padding:28px 0; color:var(--text-muted); font-size:12.5px; text-align:center;}
+
+  /* Live tracking */
+  .live-badge{
+    display:inline-flex; align-items:center; gap:6px; font-size:11.5px; font-weight:700;
+    color:var(--danger); text-transform:uppercase; letter-spacing:0.08em;
+  }
+  .live-dot{width:8px; height:8px; border-radius:50%; background:var(--danger); animation:blink 1.4s ease-in-out infinite;}
+  @keyframes blink{0%,100%{opacity:1;} 50%{opacity:0.25;}}
+  .track-path{position:relative; height:6px; background:var(--surface-2); border-radius:999px; margin:22px 4px 8px; overflow:visible;}
+  .track-fill{position:absolute; top:0; left:0; height:100%; border-radius:999px; background:var(--accent-2); transition:width 1s linear;}
+  .track-marker{
+    position:absolute; top:50%; width:30px; height:30px; margin:-15px 0 0 -15px;
+    border-radius:50%; background:var(--surface); border:2px solid var(--accent-2);
+    display:flex; align-items:center; justify-content:center; font-size:15px;
+    transition:left 1s linear; box-shadow:0 0 12px rgba(79,209,197,0.5);
+  }
+  .track-endpoint{position:absolute; top:50%; margin-top:-9px; font-size:18px;}
+  .track-endpoint-label{position:absolute; top:100%; margin-top:6px; font-size:10.5px; color:var(--text-muted); white-space:nowrap;}
+  .track-legend{display:flex; justify-content:space-between; margin-top:26px; font-size:11.5px; color:var(--text-muted);}
+  .track-legend span{display:flex; align-items:center; gap:5px;}
+
+  /* Profile */
+  .profile-header{display:flex; gap:18px; align-items:center; flex-wrap:wrap;}
+  .profile-stats{display:grid; grid-template-columns:repeat(4,1fr); gap:14px; margin-top:20px;}
+  .stat-box{background:var(--surface-2); border:1px solid var(--border); border-radius:10px; padding:16px; text-align:center;}
+  .stat-box .num{font-family:'Space Grotesk', sans-serif; font-size:24px; font-weight:700; color:var(--accent);}
+  .stat-box .lbl{font-size:12px; color:var(--text-muted); margin-top:4px;}
+  @media (max-width:880px){ .profile-stats{grid-template-columns:repeat(2,1fr);} }
+  .empty-state{text-align:center; padding:60px 20px; color:var(--text-muted);}
+  .summary-row{display:flex; justify-content:space-between; font-size:14px; padding:7px 0; border-bottom:1px solid var(--border);}
+  .summary-row:last-child{border-bottom:none; font-weight:700; color:var(--text);}
+
+  /* Map */
+  .map-box{
+    position:relative; width:100%; height:280px; border-radius:12px; overflow:hidden;
+    background:var(--surface-2); border:1px solid var(--border);
+  }
+  .map-box iframe{width:100%; height:100%; border:0; filter:invert(92%) hue-rotate(180deg) contrast(90%) brightness(95%);}
+  .map-box.small{height:180px;}
+  .map-pin-btn{
+    position:absolute; bottom:10px; right:10px; z-index:2;
+    background:var(--surface); border:1px solid var(--border); color:var(--text);
+    padding:8px 12px; border-radius:8px; font-size:12.5px; cursor:pointer;
+  }
+  .map-pin-btn:hover{border-color:var(--accent);}
+  .map-legend{
+    position:absolute; top:10px; left:10px; z-index:2;
+    background:rgba(26,30,43,0.92); border:1px solid var(--border); border-radius:8px;
+    padding:8px 10px; font-size:11.5px; display:flex; flex-direction:column; gap:5px;
+  }
+  .map-legend .lg-row{display:flex; align-items:center; gap:6px;}
+  .map-legend .lg-dot{width:9px; height:9px; border-radius:50%; flex-shrink:0;}
+
+  /* Worker register */
+  .role-toggle{display:flex; gap:6px; margin-bottom:22px; background:var(--surface-2); border-radius:10px; padding:4px; border:1px solid var(--border);}
+  .role-toggle button{flex:1; padding:9px; border:none; background:none; color:var(--text-muted); border-radius:8px; font-weight:600; font-size:13.5px; cursor:pointer;}
+  .role-toggle button.active{background:var(--accent-2); color:#08201e;}
+  .form-grid-2{display:grid; grid-template-columns:1fr 1fr; gap:12px;}
+  @media (max-width:640px){ .form-grid-2{grid-template-columns:1fr;} }
+  .chip-select{display:flex; flex-wrap:wrap; gap:8px;}
+  .chip{
+    padding:8px 13px; border-radius:999px; font-size:13px; cursor:pointer;
+    background:var(--surface-2); border:1px solid var(--border); color:var(--text-muted); user-select:none;
+  }
+  .chip.selected{background:var(--accent); color:#1b1305; border-color:var(--accent); font-weight:600;}
+  .service-row-input{display:flex; gap:8px; margin-bottom:8px; align-items:center;}
+  .service-row-input .field{flex:1;}
+  .remove-row{
+    background:var(--surface-2); border:1px solid var(--border); color:var(--danger);
+    width:34px; height:34px; border-radius:8px; cursor:pointer; flex-shrink:0; font-size:15px;
+  }
+  .worker-badge{
+    display:inline-flex; align-items:center; gap:5px; font-size:11px; font-weight:700; padding:3px 9px;
+    border-radius:999px; background:rgba(79,209,197,0.14); color:var(--accent-2); border:1px solid rgba(79,209,197,0.35);
+  }
+
+  /* Profile DP upload */
+  .avatar-edit-row{display:flex; align-items:center; gap:16px;}
+  .avatar-upload-btn{
+    display:inline-flex; align-items:center; gap:6px; cursor:pointer;
+    padding:8px 14px; border-radius:8px; font-size:13px; font-weight:600;
+    background:transparent; border:1px solid var(--border); color:var(--text);
+  }
+  .avatar-upload-btn:hover{border-color:var(--accent);}
+  .avatar-upload-btn input[type=file]{display:none;}
+  .avatar-remove-btn{
+    background:none; border:none; color:var(--danger); font-size:12.5px; cursor:pointer;
+    padding:2px 0; text-decoration:underline; text-align:left;
+  }
+
+  /* Payment method */
+  .pay-method-toggle{display:flex; gap:6px; margin-bottom:18px; background:var(--surface-2); border-radius:10px; padding:4px; border:1px solid var(--border);}
+  .pay-method-toggle button{flex:1; padding:10px; border:none; background:none; color:var(--text-muted); border-radius:8px; font-weight:600; font-size:13.5px; cursor:pointer; display:flex; align-items:center; justify-content:center; gap:6px;}
+  .pay-method-toggle button.active{background:var(--accent); color:#1b1305;}
+  .cod-note{
+    background:var(--surface-2); border:1px solid var(--border); border-radius:10px;
+    padding:14px; font-size:13px; color:var(--text-muted); display:flex; gap:10px; align-items:flex-start;
+  }
+  .cod-note .cod-icon{font-size:20px; flex-shrink:0;}
+
+  @media (max-width:880px){
+    .hero{grid-template-columns:1fr; padding-top:32px;}
+    .hero h1{font-size:32px;}
+    .grid-4{grid-template-columns:repeat(2,1fr);}
+    .grid-3{grid-template-columns:repeat(2,1fr);}
+    .grid-2{grid-template-columns:1fr;}
+    .orbit-scene{width:280px; height:280px;}
+    .timeline-label{display:none;}
+    .nav-search{order:5; max-width:none; width:100%;}
+  }
+</style>
+</head>
+<body>
+<div id="app"></div>
+<div class="toast-root" id="toast-root"></div>
+
+<script>
+/* ---------------- Mock data ---------------- */
+const categories = [
+  {id:'plumbing', name:'Plumbing', icon:'🔧'},
+  {id:'electrical', name:'Electrical', icon:'⚡'},
+  {id:'cleaning', name:'Cleaning', icon:'🧹'},
+  {id:'tutoring', name:'Tutoring', icon:'📚'},
+  {id:'salon', name:'Salon & Grooming', icon:'💇'},
+  {id:'painting', name:'Painting', icon:'🎨'},
+  {id:'appliance', name:'Appliance Repair', icon:'🔩'},
+  {id:'gardening', name:'Gardening', icon:'🌿'},
+  {id:'carpentry', name:'Carpentry', icon:'🪚'},
+  {id:'moving', name:'Moving & Packing', icon:'📦'},
+  {id:'pest', name:'Pest Control', icon:'🐜'},
+  {id:'fitness', name:'Fitness Training', icon:'🏋️'},
+  {id:'food', name:'Food Service', icon:'🍽️'},
+  {id:'phone', name:'Phone Repair', icon:'📱'},
+];
+
+function catInfo(id){ return categories.find(c=>c.id===id) || {name:id, icon:'🛠️'}; }
+
+const AP_CITIES = ['Visakhapatnam','Vijayawada','Guntur','Tirupati','Rajahmundry','Kakinada','Nellore','Kurnool','Anantapur','Kadapa','Eluru','Vizianagaram','Srikakulam','Parvathipuram Manyam','Anakapalli','Alluri Sitharama Raju','Konaseema','West Godavari','Krishna','Palnadu','Bapatla','Prakasam','Nandyal','Sri Sathya Sai','Annamayya','Chittoor'];
+
+const AP_MANDALS = {
+  'Visakhapatnam':['Visakhapatnam Urban','Pendurthi','Anandapuram','Bheemunipatnam','Gajuwaka'],
+  'Vijayawada':['Vijayawada Central','Vijayawada Rural','Penamaluru','Gannavaram','Ibrahimpatnam'],
+  'Guntur':['Guntur East','Guntur West','Pedakakani','Tadikonda','Mangalagiri'],
+  'Tirupati':['Tirupati Urban','Tirupati Rural','Renigunta','Chandragiri','Yerpedu'],
+  'Rajahmundry':['Rajahmundry Urban','Rajahmundry Rural','Kadiam','Rangampeta','Gokavaram'],
+  'Kakinada':['Kakinada Urban','Kakinada Rural','Pithapuram','Samalkot','Tallarevu'],
+  'Nellore':['Nellore Urban','Nellore Rural','Kovur','Indukurpet','Venkatachalam'],
+  'Kurnool':['Kurnool Urban','Kurnool Rural','Kallur','Panyam','Veldurthi'],
+  'Anantapur':['Anantapur Urban','Anantapur Rural','Kalyandurg','Rayadurg','Bukkarayasamudram'],
+  'Kadapa':['Kadapa Urban','Kadapa Rural','Vallur','Chennur','Mydukur'],
+  'Eluru':['Eluru Urban','Eluru Rural','Denduluru','Pedavegi','Nallajerla'],
+  'Vizianagaram':['Vizianagaram Urban','Vizianagaram Rural','Nellimarla','Gajapathinagaram','Bobbili'],
+  'Srikakulam':['Srikakulam Urban','Etcherla','Palasa','Ponduru'],
+  'Parvathipuram Manyam':['Parvathipuram','Salur','Kurupam'],
+  'Anakapalli':['Anakapalli Urban','Narsipatnam','Yelamanchili'],
+  'Alluri Sitharama Raju':['Paderu','Araku Valley','Chintapalli'],
+  'Konaseema':['Amalapuram','Razole','Ravulapalem'],
+  'West Godavari':['Bhimavaram','Tanuku','Palakollu'],
+  'Krishna':['Machilipatnam','Gudivada','Avanigadda'],
+  'Palnadu':['Narasaraopet','Sattenapalle','Piduguralla'],
+  'Bapatla':['Bapatla Urban','Chirala','Repalle'],
+  'Prakasam':['Ongole','Markapur','Kandukur'],
+  'Nandyal':['Nandyal Urban','Atmakur','Dhone'],
+  'Sri Sathya Sai':['Puttaparthi','Hindupur','Dharmavaram'],
+  'Annamayya':['Rayachoti','Rajampet','Pileru'],
+  'Chittoor':['Chittoor Urban','Punganur','Palamaner'],
+};
+function mandalsFor(city){ return AP_MANDALS[city] || []; }
+
+const DB = {
+  currentUser: null,   // populated from GET /api/auth/me — replaces users[]/currentUserId
+  bookings: [],
+  providers: [],        // populated from GET /api/providers
+};
+
+/* ================= Backend API client =================
+   Talks to the Flask API in radius-backend/. Change API_BASE if the
+   backend isn't running on localhost:5000. credentials:'include' is
+   required on every call so the session cookie (login state) is sent. */
+/* Use the same hostname the page was opened on (127.0.0.1 vs localhost) so the
+   login cookie is treated as same-site and is actually sent to the API. */
+const API_BASE = (location.protocol === 'file:') ? 'http://localhost:5000'
+  : (location.port === '5500' ? location.protocol + '//' + location.hostname + ':5000' : '');
+
+/* Strip spaces/+91/dashes so the backend always gets a plain 10-digit number. */
+function normPhone(v){
+  const d = String(v||'').replace(/\D/g,'');
+  return d.length > 10 ? d.slice(-10) : d;
+}
+
+async function apiFetch(path, options={}){
+  let res;
+  try{
+    res = await fetch(API_BASE + path, {
+      credentials: 'include',
+      headers: {'Content-Type':'application/json'},
+      ...options,
+    });
+  }catch(err){
+    throw new Error('Could not reach the server. Is the Flask backend running at ' + API_BASE + '?');
+  }
+  let data = null;
+  try{ data = await res.json(); }catch(err){ /* empty body */ }
+  if(!res.ok){
+    throw new Error((data && data.error) || ('Request failed (' + res.status + ')'));
+  }
+  return data;
+}
+
+const api = {
+  me:            () => apiFetch('/api/auth/me'),
+  login:         (body) => apiFetch('/api/auth/login', {method:'POST', body:JSON.stringify(body)}),
+  register:      (body) => apiFetch('/api/auth/register', {method:'POST', body:JSON.stringify(body)}),
+  registerWorker:(body) => apiFetch('/api/auth/register/worker', {method:'POST', body:JSON.stringify(body)}),
+  logout:        () => apiFetch('/api/auth/logout', {method:'POST'}),
+  providers:     () => apiFetch('/api/providers'),
+  myBookings:        () => apiFetch('/api/bookings'),
+  myProviderBookings:() => apiFetch('/api/bookings/provider/mine'),
+  createBooking: (body) => apiFetch('/api/bookings', {method:'POST', body:JSON.stringify(body)}),
+  advanceStage:  (id, stage) => apiFetch(`/api/bookings/${id}/stage`, {method:'PATCH', body:JSON.stringify({stage})}),
+  tickTracking:  (id) => apiFetch(`/api/bookings/${id}/tracking/tick`, {method:'POST'}),
+  submitReview:  (id, body) => apiFetch(`/api/bookings/${id}/review`, {method:'POST', body:JSON.stringify(body)}),
+  profile:       () => apiFetch('/api/profile'),
+  saveProfile:   (body) => apiFetch('/api/profile', {method:'PUT', body:JSON.stringify(body)}),
+};
+
+/* Pull the full provider list from the backend into the local DB.providers
+   cache. Called at boot and after anything that changes the provider
+   directory (worker registration, a new review, a profile save). */
+async function refreshProviders(){
+  const data = await api.providers();
+  DB.providers = data.providers;
+}
+
+/* Pulls this user's bookings — as a customer, and (if they're a worker)
+   the bookings received by their provider listing — into DB.bookings. */
+async function refreshBookings(){
+  if(!DB.currentUser){ DB.bookings = []; return; }
+  const mine = await api.myBookings();
+  let providerMine = {bookings:[]};
+  if(DB.currentUser.role === 'worker'){
+    try{ providerMine = await api.myProviderBookings(); }
+    catch(err){ /* no provider listing yet — fine */ }
+  }
+  const byId = new Map();
+  [...mine.bookings, ...providerMine.bookings].forEach(b=>byId.set(b.id, b));
+  DB.bookings = [...byId.values()];
+}
+
+/* Approx city center coordinates used to place existing providers on the map */
+const CITY_COORDS = {
+  'Visakhapatnam':[17.6868,83.2185], 'Vijayawada':[16.5062,80.6480], 'Guntur':[16.3067,80.4365],
+  'Tirupati':[13.6288,79.4192], 'Rajahmundry':[17.0005,81.8040], 'Kakinada':[16.9891,82.2475],
+  'Nellore':[14.4426,79.9865], 'Kurnool':[15.8281,78.0373], 'Anantapur':[14.6819,77.6006],
+  'Kadapa':[14.4674,78.8241], 'Eluru':[16.7107,81.0952], 'Vizianagaram':[18.1067,83.3956],
+  'Srikakulam':[18.2949,83.8938],
+  'Parvathipuram Manyam':[18.7833,83.4333],
+  'Anakapalli':[17.691,83.0037],
+  'Alluri Sitharama Raju':[18.0762,82.5527],
+  'Konaseema':[16.5785,82.0083],
+  'West Godavari':[16.5449,81.5212],
+  'Krishna':[16.1875,81.1389],
+  'Palnadu':[16.2358,80.0499],
+  'Bapatla':[15.9046,80.468],
+  'Prakasam':[15.5057,80.0499],
+  'Nandyal':[15.4785,78.483],
+  'Sri Sathya Sai':[14.165,77.809],
+  'Annamayya':[14.05,78.75],
+  'Chittoor':[13.2172,79.1003],
+};
+function jitter(base, seedStr){
+  let h = 0; for(let i=0;i<seedStr.length;i++) h = (h*31 + seedStr.charCodeAt(i)) % 1000;
+  return base + ((h/1000) - 0.5) * 0.06;
+}
+// lat/lng/street/mandal/pincode now come pre-filled from the backend
+// (see seed.py / models.Provider), so the old client-side jitter fixup
+// that ran over the hardcoded demo array is no longer needed here.
+
+function getProvider(id){ return DB.providers.find(p=>p.id===id); }
+function getBooking(id){ return DB.bookings.find(b=>b.id===id); }
+function currentUser(){ return DB.currentUser; }
+function avgRating(provider){
+  if(!provider.reviews || !provider.reviews.length) return 0;
+  return provider.reviews.reduce((a,r)=>a+r.rating,0)/provider.reviews.length;
+}
+function reviewCountDisplay(provider){
+  const c = provider.reviewCount || provider.reviews.length;
+  return c > 999 ? (c/1000).toFixed(1).replace('.0','') + 'k' : c;
+}
+function starsDisplay(rating){
+  const full = Math.round(rating);
+  return '<span class="stars">' + '★'.repeat(full) + '☆'.repeat(5-full) + '</span>';
+}
+function fmt(n){ return '₹'+n; }
+function minPrice(p){ return p.services && p.services.length ? minPrice(p) : 0; }
+
+/* Renders a circular avatar — a profile photo (data URL) if provided, otherwise initials.
+   Used for both customer/worker profile DPs and provider card avatars. */
+function avatarHtml(name, avatarUrl, size, fontSize){
+  size = size || 48; fontSize = fontSize || 15;
+  if(avatarUrl){
+    return `<div class="avatar" style="width:${size}px;height:${size}px;padding:0;overflow:hidden;background:var(--surface-2);">
+      <img src="${avatarUrl}" alt="${name}" style="width:100%;height:100%;object-fit:cover;border-radius:50%;" />
+    </div>`;
+  }
+  const initials = (name||'').split(' ').map(w=>w[0]).filter(Boolean).slice(0,2).join('');
+  return `<div class="avatar" style="width:${size}px;height:${size}px;font-size:${fontSize}px;">${initials}</div>`;
+}
+
+/* Google Maps embed (no API key needed via the public /maps output=embed endpoint) */
+function mapEmbedUrl(lat, lng, label, zoom){
+  const q = encodeURIComponent(label || (lat+','+lng));
+  return `https://maps.google.com/maps?q=${lat},${lng}(${q})&z=${zoom||14}&output=embed`;
+}
+function mapSearchEmbedUrl(query, zoom){
+  return `https://maps.google.com/maps?q=${encodeURIComponent(query)}&z=${zoom||12}&output=embed`;
+}
+function mapDirectionsEmbedUrl(originLat, originLng, destLat, destLng){
+  return `https://maps.google.com/maps?saddr=${originLat},${originLng}&daddr=${destLat},${destLng}&output=embed`;
+}
+function distanceKm(lat1,lng1,lat2,lng2){
+  const R=6371, dLat=(lat2-lat1)*Math.PI/180, dLng=(lng2-lng1)*Math.PI/180;
+  const a = Math.sin(dLat/2)**2 + Math.cos(lat1*Math.PI/180)*Math.cos(lat2*Math.PI/180)*Math.sin(dLng/2)**2;
+  return R * 2*Math.atan2(Math.sqrt(a), Math.sqrt(1-a));
+}
+
+/* ---------------- App state ---------------- */
+let route = {view:'home', params:{}};
+let history = [];
+let state = {
+  filterCategory:'',
+  filterLocation:'',
+  filterQuery:'',
+  filterRating:'',
+  sortBy:'rating',
+  authTab:'login',
+  redirect:null,
+  bookingDraft:null,
+  processingPayment:false,
+  reviewStars:0,
+  editingProfile:false,
+  authRole:'customer',
+  workerCategories:[],
+  workerServiceRows:[{name:'',price:''}],
+  customerLoc:null,
+  paymentMethod:'card',
+  showNavSuggest:false,
+  showHomeSuggest:false,
+};
+
+/* Live tracking ticker — decrements ETA on the booking currently being viewed
+   every few seconds, via the backend's tick endpoint (so the ETA is shared
+   server-side state, not just a local counter). */
+setInterval(async ()=>{
+  if(route.view !== 'status') return;
+  const b = getBooking(route.params.id);
+  if(!b || b.stage !== 'in_progress' || !(b.trackingETA > 0)) return;
+  try{
+    const data = await api.tickTracking(b.id);
+    Object.assign(b, data.booking);
+    render();
+  }catch(err){ /* offline / server unreachable — skip this tick */ }
+}, 4000);
+
+function nav(view, params={}, opts={}){
+  if(!opts.skipHistory){
+    history.push(route);
+  }
+  route = {view, params};
+  state.showNavSuggest = false;
+  state.showHomeSuggest = false;
+  window.scrollTo({top:0, behavior:'smooth'});
+  render();
+}
+
+function goBack(){
+  if(history.length === 0){
+    nav('home', {}, {skipHistory:true});
+    return;
+  }
+  route = history.pop();
+  window.scrollTo({top:0, behavior:'smooth'});
+  render();
+}
+
+function toast(msg){
+  const root = document.getElementById('toast-root');
+  const el = document.createElement('div');
+  el.className = 'toast';
+  el.textContent = msg;
+  root.appendChild(el);
+  requestAnimationFrame(()=>el.classList.add('show'));
+  setTimeout(()=>{ el.classList.remove('show'); setTimeout(()=>el.remove(), 300); }, 2600);
+}
+
+/* ---------------- Search suggestion engine ---------------- */
+/* Returns up to `limit` matches across provider names, categories, areas, and individual services,
+   ranked with services/category-name matches first since those are what people usually type. */
+function getSearchSuggestions(qRaw, limit){
+  const q = (qRaw||'').trim().toLowerCase();
+  if(!q) return [];
+  const results = [];
+
+  categories.forEach(c=>{
+    if(c.name.toLowerCase().includes(q)){
+      results.push({type:'category', icon:c.icon, title:c.name, sub:'Browse category', rank:0, catId:c.id});
+    }
+  });
+
+  DB.providers.forEach(p=>{
+    const c = catInfo(p.category);
+    p.services.forEach(s=>{
+      if(s.name.toLowerCase().includes(q)){
+        results.push({type:'service', icon:c.icon, title:s.name, sub:p.name+' · '+p.area, price:s.price, rank:1, providerId:p.id});
+      }
+    });
+    if(p.name.toLowerCase().includes(q)){
+      results.push({type:'provider', icon:c.icon, title:p.name, sub:c.name+' · '+p.area, rank:2, providerId:p.id});
+    }
+    if(!p.services.some(s=>s.name.toLowerCase().includes(q)) && !p.name.toLowerCase().includes(q) && p.area.toLowerCase().includes(q)){
+      results.push({type:'area', icon:'📍', title:p.area, sub:c.name+' pros nearby', rank:3, area:p.area});
+    }
+  });
+
+  const seen = new Set();
+  const deduped = [];
+  for(const r of results){
+    const key = r.type+'|'+r.title+'|'+(r.providerId||r.area||r.catId||'');
+    if(seen.has(key)) continue;
+    seen.add(key);
+    deduped.push(r);
+  }
+  deduped.sort((a,b)=>a.rank-b.rank);
+  return deduped.slice(0, limit||8);
+}
+
+function suggestDropdown(inputId, dropdownId, value){
+  const items = getSearchSuggestions(value, 8);
+  if(!items.length){
+    return `<div class="search-suggest-empty">No matching services or pros yet</div>`;
+  }
+  return items.map(it=>{
+    const clickAction = it.type==='category' ? `chooseSuggestCategory('${it.catId}')`
+      : (it.type==='provider'||it.type==='service') ? `chooseSuggestProvider('${it.providerId}')`
+      : `chooseSuggestArea('${it.area}')`;
+    return `<div class="search-suggest-item" onclick="${clickAction}">
+      <span class="ssi-icon">${it.icon}</span>
+      <div class="ssi-main">
+        <div class="ssi-title">${it.title}</div>
+        <div class="ssi-sub">${it.sub}</div>
+      </div>
+      ${it.price ? `<span class="ssi-price">${fmt(it.price)}</span>` : ''}
+    </div>`;
+  }).join('');
+}
+
+function chooseSuggestCategory(catId){
+  state.filterCategory = catId;
+  state.filterQuery = '';
+  state.showNavSuggest = false;
+  state.showHomeSuggest = false;
+  nav('search');
+}
+function chooseSuggestProvider(providerId){
+  state.showNavSuggest = false;
+  state.showHomeSuggest = false;
+  nav('provider',{id:providerId});
+}
+function chooseSuggestArea(area){
+  state.filterLocation = area;
+  state.filterQuery = '';
+  state.showNavSuggest = false;
+  state.showHomeSuggest = false;
+  nav('search');
+}
+
+function onNavSearchInput(val){
+  state.filterQuery = val;
+  state.showNavSuggest = val.trim().length > 0;
+  const dd = document.getElementById('navSuggestDropdown');
+  if(dd){
+    dd.innerHTML = suggestDropdown('navSearchInput','navSuggestDropdown', val);
+    dd.style.display = state.showNavSuggest ? 'block' : 'none';
+  }
+}
+function onHomeSearchInput(val){
+  state.filterQuery = val;
+  state.showHomeSuggest = val.trim().length > 0;
+  const dd = document.getElementById('homeSuggestDropdown');
+  if(dd){
+    dd.innerHTML = suggestDropdown('homeQuery','homeSuggestDropdown', val);
+    dd.style.display = state.showHomeSuggest ? 'block' : 'none';
+  }
+}
+function hideSuggestSoon(which){
+  setTimeout(()=>{
+    if(which==='nav') state.showNavSuggest = false; else state.showHomeSuggest = false;
+    const dd = document.getElementById(which==='nav' ? 'navSuggestDropdown' : 'homeSuggestDropdown');
+    if(dd) dd.style.display = 'none';
+  }, 180);
+}
+
+/* ---------------- Shared components ---------------- */
+function navbar(){
+  const u = currentUser();
+  const link = (view,label) => `<button class="nav-link ${route.view===view?'active':''}" onclick="nav('${view}')">${label}</button>`;
+  const canGoBack = history.length > 0;
+  return `
+  <div class="navbar">
+    <div class="navbar-inner">
+      <div class="navbar-left">
+        <button class="back-btn" title="Go back" onclick="goBack()" ${canGoBack ? '' : 'disabled'}>←</button>
+        <div class="logo" onclick="nav('home')">
+          <span class="logo-mark"></span> Radius
+        </div>
+      </div>
+      <form class="nav-search" onsubmit="return navSearch(event)">
+        <input type="text" placeholder="Search services, e.g. plumber, tutor..." id="navSearchInput"
+          value="${state.filterQuery || ''}"
+          oninput="onNavSearchInput(this.value)"
+          onfocus="onNavSearchInput(this.value)"
+          onblur="hideSuggestSoon('nav')" autocomplete="off" />
+        <button type="submit" title="Search">🔍</button>
+        <div class="search-suggest" id="navSuggestDropdown" style="display:${state.showNavSuggest?'block':'none'};">
+          ${state.showNavSuggest ? suggestDropdown('navSearchInput','navSuggestDropdown', state.filterQuery) : ''}
+        </div>
+      </form>
+      <div class="nav-links">
+        ${link('home','Home')}
+        ${link('search','Search')}
+        ${link('find-map','Map')}
+        ${u && u.role === 'worker' ? link('worker-dashboard','Dashboard') : ''}
+        ${u && u.role === 'customer' ? link('bookings','My Bookings') : ''}
+        ${u && u.role === 'admin' ? `<a class="btn btn-ghost btn-sm" href="admin.html">Admin Portal</a>` : ''}
+        ${u && u.role !== 'admin' ? link('profile','My Profile') : ''}
+        ${u
+          ? `<button class="btn btn-ghost btn-sm" onclick="logout()">Log out</button>`
+          : `<button class="btn btn-primary btn-sm" onclick="nav('auth')">Log in / Register</button>`
+        }
+      </div>
+    </div>
+  </div>`;
+}
+
+function navSearch(e){
+  e.preventDefault();
+  const val = document.getElementById('navSearchInput').value.trim();
+  state.filterQuery = val;
+  nav('search');
+  return false;
+}
+
+function footer(){
+  return `<div class="footer container">Radius — Local Service Finder. Search and book trusted professionals near you.</div>`;
+}
+
+function orbitScene(){
+  const icons = categories.slice(0,8);
+  const step = 360/icons.length;
+  const iconsHtml = icons.map((c,i)=>{
+    const angle = i*step;
+    return `<div class="orbit-icon" style="transform:rotateY(${angle}deg) translateZ(150px);">${c.icon}</div>`;
+  }).join('');
+  return `
+  <div class="orbit-scene">
+    <div class="pulse-ring"></div>
+    <div class="pulse-ring d2"></div>
+    <div class="pulse-ring d3"></div>
+    <div class="orbit-ring">${iconsHtml}</div>
+    <div class="orbit-center"></div>
+  </div>`;
+}
+
+function timeline(stage){
+  const stages = [
+    {key:'paid', label:'Payment Confirmed'},
+    {key:'accepted', label:'Provider Accepted'},
+    {key:'in_progress', label:'In Progress'},
+    {key:'completed', label:'Completed'},
+    {key:'reviewed', label:'Reviewed'},
+  ];
+  const idx = stages.findIndex(s=>s.key===stage);
+  return `<div class="timeline">
+    ${stages.map((s,i)=>{
+      let cls = '';
+      if(i < idx) cls = 'done';
+      else if(i === idx) cls = 'active';
+      return `<div class="timeline-node ${cls}">
+        <div class="timeline-dot"></div>
+        <div class="timeline-label">${s.label}</div>
+      </div>`;
+    }).join('')}
+  </div>`;
+}
+
+/* ---------------- Views ---------------- */
+function viewHome(){
+  const top = [...DB.providers].sort((a,b)=>avgRating(b)-avgRating(a)).slice(0,3);
+  return `
+  <div class="container">
+    <div class="hero">
+      <div>
+        <div class="eyebrow">Local services across Andhra Pradesh</div>
+        <h1>Every trusted pro in your radius, one search away.</h1>
+        <p class="sub">Find plumbers, electricians, tutors, cleaners, and more across Visakhapatnam, Vijayawada, Guntur, and beyond. Book a time, pay securely (card or cash), and track your service live from accepted to completed.</p>
+        <form class="search-card" onsubmit="return doSearch(event)">
+          <input class="field" type="text" id="homeQuery" placeholder="Search e.g. 'electrician', 'deep clean'..."
+            value="${state.filterQuery || ''}"
+            oninput="onHomeSearchInput(this.value)"
+            onfocus="onHomeSearchInput(this.value)"
+            onblur="hideSuggestSoon('home')" autocomplete="off" />
+          <select class="field" id="homeCategory">
+            <option value="">All services</option>
+            ${categories.map(c=>`<option value="${c.id}">${c.icon} ${c.name}</option>`).join('')}
+          </select>
+          <select class="field" id="homeLocation">
+            <option value="">All Andhra Pradesh</option>
+            ${AP_CITIES.map(c=>`<option value="${c}">${c}</option>`).join('')}
+          </select>
+          <button class="btn btn-primary" type="submit">Find Pros</button>
+          <div class="search-suggest" id="homeSuggestDropdown" style="display:${state.showHomeSuggest?'block':'none'}; top:calc(100% + 4px);">
+            ${state.showHomeSuggest ? suggestDropdown('homeQuery','homeSuggestDropdown', state.filterQuery) : ''}
+          </div>
+        </form>
+        <div class="stat-line">1,240+ verified pros across Andhra Pradesh · 4.8 average rating · live service tracking · cash or card</div>
+        <button class="btn btn-ghost btn-sm" style="margin-top:14px;" onclick="nav('find-map')">📍 Find workers on the map</button>
+      </div>
+      <div>${orbitScene()}</div>
+    </div>
+  </div>
+
+  <div class="container" style="padding-bottom:0;">
+    <div class="card" style="display:flex; justify-content:space-between; align-items:center; gap:16px; flex-wrap:wrap;">
+      <div>
+        <div class="eyebrow" style="margin-bottom:6px;">For skilled pros</div>
+        <h3 style="margin:0 0 4px;">Are you a plumber, electrician, or tutor?</h3>
+        <p class="provider-meta" style="margin:0;">Register as a worker, list your services, and get found by customers near your street and mandal.</p>
+      </div>
+      <button class="btn btn-primary" onclick="state.authTab='register'; state.authRole='worker'; nav('auth')">Register as a Worker</button>
+    </div>
+  </div>
+
+  <div class="section container">
+    <div class="eyebrow">Browse by service</div>
+    <h2 style="margin-top:0;">What do you need help with?</h2>
+    <div class="grid grid-4">
+      ${categories.map(c=>`
+        <div class="card category-card" onclick="selectCategory('${c.id}')">
+          <span class="icon">${c.icon}</span>
+          <span class="name">${c.name}</span>
+        </div>`).join('')}
+    </div>
+  </div>
+
+  <div class="section container" style="padding-top:0;">
+    <div class="eyebrow">How booking works</div>
+    <h2 style="margin-top:0;">From search to review, in five stops</h2>
+    <div class="card">${timeline('none')}</div>
+  </div>
+
+  <div class="section container" style="padding-top:0;">
+    <div class="eyebrow">Top rated</div>
+    <h2 style="margin-top:0;">Highly rated near you</h2>
+    <div class="grid grid-3">
+      ${top.map(providerCard).join('')}
+    </div>
+  </div>
+  `;
+}
+
+function providerCard(p){
+  const c = catInfo(p.category);
+  return `
+  <div class="card provider-card">
+    <div class="provider-top">
+      ${avatarHtml(p.name, p.avatarUrl, 48, 15)}
+      <div>
+        <div class="provider-name">${p.name}</div>
+        <div class="provider-meta">${c.icon} ${c.name} · ${p.area}</div>
+      </div>
+    </div>
+    <div>${starsDisplay(avgRating(p))} <span class="provider-meta">(${reviewCountDisplay(p)})</span></div>
+    <div class="price-tag">From ${fmt(minPrice(p))}</div>
+    <button class="btn btn-ghost btn-block" onclick="nav('provider',{id:'${p.id}'})">View Profile</button>
+  </div>`;
+}
+
+function doSearch(e){
+  e.preventDefault();
+  const q = document.getElementById('homeQuery').value.trim();
+  const cat = document.getElementById('homeCategory').value;
+  const loc = document.getElementById('homeLocation').value.trim();
+  state.filterQuery = q;
+  state.filterCategory = cat;
+  state.filterLocation = loc;
+  nav('search');
+  return false;
+}
+
+function selectCategory(id){
+  state.filterCategory = id;
+  state.filterLocation = '';
+  state.filterQuery = '';
+  nav('search');
+}
+
+function viewSearch(){
+  const q = (state.filterQuery || '').trim().toLowerCase();
+  let results = DB.providers.filter(p=>{
+    const matchCat = !state.filterCategory || p.category === state.filterCategory;
+    const matchLoc = !state.filterLocation || p.area.toLowerCase().includes(state.filterLocation.toLowerCase());
+    const matchRating = !state.filterRating || avgRating(p) >= Number(state.filterRating);
+    const c = catInfo(p.category);
+    const matchQuery = !q ||
+      p.name.toLowerCase().includes(q) ||
+      c.name.toLowerCase().includes(q) ||
+      p.area.toLowerCase().includes(q) ||
+      p.bio.toLowerCase().includes(q) ||
+      p.services.some(s=>s.name.toLowerCase().includes(q));
+    return matchCat && matchLoc && matchRating && matchQuery;
+  });
+  if(state.sortBy === 'rating') results.sort((a,b)=>avgRating(b)-avgRating(a));
+  if(state.sortBy === 'price') results.sort((a,b)=>minPrice(a) - minPrice(b));
+
+  /* When there's a query, surface the exact matched service under each result so
+     typing "leak" or "deep clean" clearly shows which service matched. */
+  const matchedServiceFor = (p) => {
+    if(!q) return null;
+    return p.services.find(s=>s.name.toLowerCase().includes(q));
+  };
+
+  return `
+  <div class="container section">
+    <div class="eyebrow">Search results</div>
+    <h2 style="margin-top:0; margin-bottom:20px;">Find your pro</h2>
+    <div class="card" style="display:flex; gap:12px; flex-wrap:wrap; margin-bottom:24px; position:relative;">
+      <input class="field" style="max-width:260px;" type="text" id="searchPageInput" placeholder="Search services or pros..." value="${state.filterQuery || ''}"
+        oninput="state.filterQuery=this.value; document.getElementById('searchLiveResults').innerHTML=renderSearchResultsList();"
+        autocomplete="off" />
+      <select class="field" style="max-width:220px;" onchange="state.filterCategory=this.value; render();">
+        <option value="">All services</option>
+        ${categories.map(c=>`<option value="${c.id}" ${state.filterCategory===c.id?'selected':''}>${c.icon} ${c.name}</option>`).join('')}
+      </select>
+      <select class="field" style="max-width:220px;" onchange="state.filterLocation=this.value; render();">
+        <option value="">All Andhra Pradesh</option>
+        ${AP_CITIES.map(c=>`<option value="${c}" ${state.filterLocation===c?'selected':''}>${c}</option>`).join('')}
+      </select>
+      <select class="field" style="max-width:200px;" onchange="state.filterRating=this.value; render();">
+        <option value="">All ratings</option>
+        <option value="4" ${state.filterRating==='4'?'selected':''}>★★★★ & up (4+)</option>
+        <option value="3" ${state.filterRating==='3'?'selected':''}>★★★ & up (3+)</option>
+        <option value="2" ${state.filterRating==='2'?'selected':''}>★★ & up (2+)</option>
+        <option value="1" ${state.filterRating==='1'?'selected':''}>★ & up (1+)</option>
+      </select>
+      <select class="field" style="max-width:200px;" onchange="state.sortBy=this.value; render();">
+        <option value="rating" ${state.sortBy==='rating'?'selected':''}>Sort: Rating</option>
+        <option value="price" ${state.sortBy==='price'?'selected':''}>Sort: Price (low to high)</option>
+      </select>
+    </div>
+    <div id="searchLiveResults">${renderSearchResultsList()}</div>
+  </div>`;
+}
+
+/* Renders the results grid based on current state — called on every keystroke in the search box
+   so results update live as the user types, and shows which specific service matched. */
+function renderSearchResultsList(){
+  const q = (state.filterQuery || '').trim().toLowerCase();
+  let results = DB.providers.filter(p=>{
+    const matchCat = !state.filterCategory || p.category === state.filterCategory;
+    const matchLoc = !state.filterLocation || p.area.toLowerCase().includes(state.filterLocation.toLowerCase());
+    const matchRating = !state.filterRating || avgRating(p) >= Number(state.filterRating);
+    const c = catInfo(p.category);
+    const matchQuery = !q ||
+      p.name.toLowerCase().includes(q) ||
+      c.name.toLowerCase().includes(q) ||
+      p.area.toLowerCase().includes(q) ||
+      p.bio.toLowerCase().includes(q) ||
+      p.services.some(s=>s.name.toLowerCase().includes(q));
+    return matchCat && matchLoc && matchRating && matchQuery;
+  });
+  if(state.sortBy === 'rating') results.sort((a,b)=>avgRating(b)-avgRating(a));
+  if(state.sortBy === 'price') results.sort((a,b)=>minPrice(a) - minPrice(b));
+
+  if(!results.length){
+    return `<div class="empty-state">No pros match those filters yet. Try a different service or area.</div>`;
+  }
+
+  return `<div class="grid grid-3">${results.map(p=>{
+    const c = catInfo(p.category);
+    const matched = q ? p.services.find(s=>s.name.toLowerCase().includes(q)) : null;
+    return `
+    <div class="card provider-card">
+      <div class="provider-top">
+        ${avatarHtml(p.name, p.avatarUrl, 48, 15)}
+        <div>
+          <div class="provider-name">${p.name}</div>
+          <div class="provider-meta">${c.icon} ${c.name} · ${p.area}</div>
+        </div>
+      </div>
+      <div>${starsDisplay(avgRating(p))} <span class="provider-meta">(${reviewCountDisplay(p)})</span></div>
+      ${matched ? `<div class="tag" style="align-self:flex-start;">Matches: ${matched.name} · ${fmt(matched.price)}</div>` : ''}
+      <div class="price-tag">From ${fmt(minPrice(p))}</div>
+      <button class="btn btn-ghost btn-block" onclick="nav('provider',{id:'${p.id}'})">View Profile</button>
+    </div>`;
+  }).join('')}</div>`;
+}
+
+function viewProvider(params){
+  const p = getProvider(params.id);
+  if(!p) return `<div class="container section empty-state">Provider not found. <a href="#" onclick="nav('search');return false;">Back to search</a></div>`;
+  const c = catInfo(p.category);
+  return `
+  <div class="container section">
+    <div class="card" style="margin-bottom:24px;">
+      <div class="provider-top" style="margin-bottom:14px;">
+        ${avatarHtml(p.name, p.avatarUrl, 64, 20)}
+        <div>
+          <h2 style="margin:0 0 4px;">${p.name}</h2>
+          <div class="provider-meta">${c.icon} ${c.name} · ${p.area}, Andhra Pradesh</div>
+          <div style="margin-top:6px;">${starsDisplay(avgRating(p))} <span class="provider-meta">${avgRating(p).toFixed(1)} (${reviewCountDisplay(p)} reviews)</span></div>
+        </div>
+      </div>
+      <p style="color:var(--text-muted);">${p.bio}</p>
+      <p class="provider-meta">📞 <a href="tel:${p.phone.replace(/\s/g,'')}">${p.phone}</a></p>
+      <p class="provider-meta">📍 ${p.street}, ${p.mandal}, ${p.area} - ${p.pincode}</p>
+      ${p.category === 'phone'
+        ? `<div class="card" style="background:var(--surface-2); border-color:var(--accent); padding:12px 14px; margin-top:6px;">
+             <strong>ℹ️ Information only</strong>
+             <p class="provider-meta" style="margin:6px 0 0;">This listing is for reference only and cannot be booked through Radius. Please contact the number above directly to arrange service.</p>
+           </div>`
+        : `<button class="btn btn-primary" onclick="startBooking('${p.id}')">Book This Pro</button>`}
+    </div>
+
+    <div class="card" style="margin-bottom:24px;">
+      <h3 style="margin-top:0;">Location</h3>
+      <div class="map-box">
+        <iframe src="${mapEmbedUrl(p.lat, p.lng, p.name)}" loading="lazy" title="${p.name} location"></iframe>
+      </div>
+    </div>
+
+    <div class="grid grid-2">
+      <div class="card">
+        <h3 style="margin-top:0;">Services & pricing</h3>
+        ${p.services.map(s=>`
+          <div class="summary-row"><span>${s.name}</span><span class="price-tag">${fmt(s.price)}</span></div>
+        `).join('')}
+      </div>
+      <div class="card">
+        <h3 style="margin-top:0;">Reviews</h3>
+        ${p.reviews.length ? p.reviews.map(r=>`
+          <div class="review-item">
+            <div style="display:flex; justify-content:space-between;">
+              <strong>${r.name}</strong>
+              <span class="stars">${'★'.repeat(r.rating)}${'☆'.repeat(5-r.rating)}</span>
+            </div>
+            <div class="provider-meta" style="margin:4px 0;">${r.date}</div>
+            <div>${r.comment}</div>
+          </div>
+        `).join('') : `<div class="provider-meta">No reviews yet.</div>`}
+      </div>
+    </div>
+  </div>`;
+}
+
+function startBooking(providerId){
+  const prov = getProvider(providerId);
+  if(prov && prov.category === 'phone'){
+    toast('This listing is for information only — please call the provider directly.');
+    return;
+  }
+  if(!DB.currentUser){
+    toast('Please log in to book a service');
+    state.redirect = {view:'provider', params:{id:providerId}};
+    nav('auth');
+    return;
+  }
+  nav('booking',{providerId});
+}
+
+function viewBooking(params){
+  const p = getProvider(params.providerId);
+  if(!p) return `<div class="container section empty-state">Provider not found.</div>`;
+  const today = new Date().toISOString().split('T')[0];
+  return `
+  <div class="container section" style="max-width:640px; margin:0 auto;">
+    <div class="eyebrow">Step 1 of 3 · Booking details</div>
+    <h2 style="margin-top:0;">Book ${p.name}</h2>
+    <div class="card">
+      <form onsubmit="return submitBooking(event,'${p.id}')">
+        <div class="form-group">
+          <label>Service</label>
+          <select class="field" name="serviceIdx" required>
+            ${p.services.map((s,i)=>`<option value="${i}">${s.name} — ${fmt(s.price)}</option>`).join('')}
+          </select>
+        </div>
+        <div class="form-group" style="display:flex; gap:12px;">
+          <div style="flex:1;">
+            <label>Date</label>
+            <input class="field" type="date" name="date" min="${today}" required />
+          </div>
+          <div style="flex:1;">
+            <label>Time</label>
+            <input class="field" type="time" name="time" required />
+          </div>
+        </div>
+        <div class="form-group">
+          <label>Street / House No.</label>
+          <input class="field" name="street" placeholder="e.g. 12-34, Ring Road" required />
+        </div>
+        <div class="form-grid-2">
+          <div class="form-group">
+            <label>Mandal</label>
+            <select class="field" name="mandal" required>
+              ${mandalsFor(p.area).map(m=>`<option value="${m}">${m}</option>`).join('') || `<option value="${p.area}">${p.area}</option>`}
+            </select>
+          </div>
+          <div class="form-group">
+            <label>Pincode</label>
+            <input class="field" name="pincode" placeholder="e.g. 520010" pattern="[0-9]{6}" title="Enter a 6-digit pincode, e.g. 522101" maxlength="6" required />
+          </div>
+        </div>
+        <div class="form-group">
+          <label>Notes for the provider (optional)</label>
+          <input class="field" name="notes" placeholder="Anything they should know?" />
+        </div>
+        <button class="btn btn-primary btn-block" type="submit">Continue to Payment</button>
+      </form>
+    </div>
+    <div class="card" style="margin-top:14px;">
+      <h3 style="margin-top:0;">${p.name}'s location</h3>
+      <p class="provider-meta">${p.street}, ${p.mandal}, ${p.area} - ${p.pincode}</p>
+      <div class="map-box small">
+        <iframe src="${mapEmbedUrl(p.lat, p.lng, p.name)}" loading="lazy" title="Provider location"></iframe>
+      </div>
+    </div>
+  </div>`;
+}
+
+function submitBooking(e, providerId){
+  e.preventDefault();
+  const f = e.target;
+  const p = getProvider(providerId);
+  const service = p.services[Number(f.serviceIdx.value)];
+  state.bookingDraft = {
+    providerId,
+    serviceName: service.name,
+    servicePrice: service.price,
+    date: f.date.value,
+    time: f.time.value,
+    street: f.street.value,
+    mandal: f.mandal.value,
+    pincode: f.pincode.value,
+    address: f.street.value + ', ' + f.mandal.value + ' - ' + f.pincode.value,
+    notes: f.notes.value,
+  };
+  state.paymentMethod = 'card';
+  nav('payment',{providerId});
+  return false;
+}
+
+function viewPayment(params){
+  const p = getProvider(params.providerId);
+  const d = state.bookingDraft;
+  if(!p || !d) return `<div class="container section empty-state">Nothing to pay for yet. <a href="#" onclick="nav('search');return false;">Start a search</a></div>`;
+  return `
+  <div class="container section" style="max-width:640px; margin:0 auto;">
+    <div class="eyebrow">Step 2 of 3 · Payment</div>
+    <h2 style="margin-top:0;">Confirm and pay</h2>
+    <div class="card" style="margin-bottom:18px;">
+      <div class="summary-row"><span>Provider</span><span>${p.name}</span></div>
+      <div class="summary-row"><span>Service</span><span>${d.serviceName}</span></div>
+      <div class="summary-row"><span>Date & time</span><span>${d.date} · ${d.time}</span></div>
+      <div class="summary-row"><span>Total</span><span>${fmt(d.servicePrice)}</span></div>
+    </div>
+    <div class="card">
+      ${state.processingPayment ? `<div class="empty-state">${state.paymentMethod==='cod' ? 'Confirming your cash on delivery booking…' : 'Processing payment…'}</div>` : `
+      <div class="pay-method-toggle">
+        <button type="button" class="${state.paymentMethod==='card'?'active':''}" onclick="state.paymentMethod='card'; render();">💳 Card / Online</button>
+        <button type="button" class="${state.paymentMethod==='cod'?'active':''}" onclick="state.paymentMethod='cod'; render();">💵 Cash on Delivery</button>
+      </div>
+      ${state.paymentMethod === 'card' ? `
+      <form onsubmit="return submitPayment(event,'${p.id}')">
+        <div class="form-group">
+          <label>Name on card</label>
+          <input class="field" name="nameOnCard" placeholder="Full name" required />
+        </div>
+        <div class="form-group">
+          <label>Card number</label>
+          <input class="field" name="cardNumber" placeholder="4242 4242 4242 4242" required maxlength="19" />
+        </div>
+        <div class="form-group" style="display:flex; gap:12px;">
+          <div style="flex:1;">
+            <label>Expiry</label>
+            <input class="field" name="expiry" placeholder="MM/YY" required maxlength="5" />
+          </div>
+          <div style="flex:1;">
+            <label>CVC</label>
+            <input class="field" name="cvc" placeholder="123" required maxlength="4" />
+          </div>
+        </div>
+        <button class="btn btn-primary btn-block" type="submit">Pay ${fmt(d.servicePrice)}</button>
+        <p class="provider-meta" style="text-align:center; margin-top:10px;">Demo payment form — no real transaction occurs.</p>
+      </form>` : `
+      <form onsubmit="return submitCodBooking(event,'${p.id}')">
+        <div class="cod-note" style="margin-bottom:18px;">
+          <span class="cod-icon">💵</span>
+          <div>
+            Pay <strong>${fmt(d.servicePrice)}</strong> in cash directly to ${p.name} after the service is completed at your doorstep. Please keep exact change ready if possible.
+          </div>
+        </div>
+        <div class="form-group">
+          <label>Contact number for delivery confirmation</label>
+          <input class="field" name="codPhone" type="tel" placeholder="10-digit mobile number" pattern="[0-9+ \-]{10,15}" title="Enter a 10-digit mobile number, e.g. 9876543210 (+91 and spaces are okay)" required />
+        </div>
+        <button class="btn btn-primary btn-block" type="submit">Confirm Cash on Delivery Booking</button>
+        <p class="provider-meta" style="text-align:center; margin-top:10px;">No payment is collected now — you pay ${p.name} in person when the job is done.</p>
+      </form>`}
+      `}
+    </div>
+  </div>`;
+}
+
+function submitPayment(e, providerId){
+  e.preventDefault();
+  const f = e.target;
+  if(!f.cardNumber.value.trim() || !f.expiry.value.trim() || !f.cvc.value.trim() || !f.nameOnCard.value.trim()){
+    toast('Please fill in all payment fields');
+    return false;
+  }
+  state.processingPayment = true;
+  render();
+  finalizeBooking(providerId, {
+    paymentMethod:'card',
+    cardNumber:f.cardNumber.value,
+    expiry:f.expiry.value,
+    cvc:f.cvc.value,
+    nameOnCard:f.nameOnCard.value,
+  });
+  return false;
+}
+
+function submitCodBooking(e, providerId){
+  e.preventDefault();
+  const f = e.target;
+  if(!f.codPhone.value.trim()){
+    toast('Please provide a contact number');
+    return false;
+  }
+  state.processingPayment = true;
+  render();
+  finalizeBooking(providerId, {paymentMethod:'cod', codPhone:normPhone(f.codPhone.value)});
+  return false;
+}
+
+/* Creates the booking on the backend — mirrors what used to be simulated
+   entirely client-side. The server does the same "simulate payment in one
+   step" trick the frontend used to (see routes_bookings.create_booking). */
+async function finalizeBooking(providerId, paymentInfo){
+  const d = state.bookingDraft;
+  try{
+    const data = await api.createBooking({
+      providerId,
+      serviceName: d.serviceName,
+      servicePrice: d.servicePrice,
+      date: d.date,
+      time: d.time,
+      street: d.street,
+      mandal: d.mandal,
+      pincode: d.pincode,
+      notes: d.notes,
+      ...paymentInfo,
+    });
+    DB.bookings.push(data.booking);
+    state.processingPayment = false;
+    state.bookingDraft = null;
+    toast(paymentInfo.paymentMethod === 'cod' ? 'Booking confirmed — pay cash on delivery' : 'Payment successful — booking confirmed');
+    nav('status',{id:data.booking.id});
+  }catch(err){
+    state.processingPayment = false;
+    toast(err.message);
+    render();
+  }
+}
+
+function viewStatus(params){
+  const b = getBooking(params.id);
+  if(!b) return `<div class="container section empty-state">Booking not found.</div>`;
+  const p = getProvider(b.providerId);
+  if(!p) return `<div class="container section empty-state">This provider is no longer available. <a href="#" onclick="nav('bookings');return false;">Back to My Bookings</a></div>`;
+  const u = currentUser();
+  const stageLabels = {paid:'Payment Confirmed', accepted:'Provider Accepted', in_progress:'In Progress', completed:'Completed', reviewed:'Reviewed'};
+  const stageLabelsCod = {paid:'Booking Confirmed', accepted:'Provider Accepted', in_progress:'In Progress', completed:'Completed', reviewed:'Reviewed'};
+  const labels = b.paymentMethod === 'cod' ? stageLabelsCod : stageLabels;
+
+  let controls = '';
+  if(b.stage === 'paid'){
+    controls = `<button class="btn btn-primary" onclick="advanceStage('${b.id}','accepted')">Simulate: Provider Accepts</button>`;
+  } else if(b.stage === 'accepted'){
+    controls = `<button class="btn btn-primary" onclick="advanceStage('${b.id}','in_progress')">Simulate: Start Service</button>`;
+  } else if(b.stage === 'in_progress'){
+    controls = `<button class="btn btn-primary" onclick="advanceStage('${b.id}','completed')">Simulate: Mark Completed</button>`;
+  }
+
+  const paymentBadge = b.paymentMethod === 'cod'
+    ? `<span class="badge-stage dot" style="border-color:var(--accent-2); color:var(--accent-2);">💵 Cash on Delivery</span>`
+    : `<span class="badge-stage dot">💳 Paid by card ${b.cardLast4 ? '···'+b.cardLast4 : ''}</span>`;
+
+  let contactCard = '';
+  if(['accepted','in_progress','completed','reviewed'].includes(b.stage)){
+    contactCard = `<div class="card" style="margin-top:14px; display:flex; justify-content:space-between; align-items:center; flex-wrap:wrap; gap:10px;">
+      <div>
+        <div class="provider-name">${p.name}</div>
+        <div class="provider-meta">📞 <a href="tel:${p.phone.replace(/\s/g,'')}">${p.phone}</a></div>
+        ${b.paymentMethod==='cod' ? `<div class="provider-meta" style="margin-top:4px;">💵 Amount due on completion: <strong>${fmt(b.servicePrice)}</strong></div>` : ''}
+      </div>
+      <a class="btn btn-ghost btn-sm" href="tel:${p.phone.replace(/\s/g,'')}">Call Provider</a>
+    </div>`;
+  }
+
+  /* --- Improved live tracking: clear customer <-> worker map with both pins,
+     directional route, distance, and a readable progress bar with named endpoints --- */
+  let trackingWidget = '';
+  if(b.stage === 'in_progress'){
+    const eta = typeof b.trackingETA === 'number' ? b.trackingETA : 0;
+    const initial = b.trackingETAInitial || 15;
+    const pct = Math.min(100, Math.round(((initial - eta) / initial) * 100));
+    const arrived = eta <= 0;
+
+    // Customer destination coords: derive from provider's city center with a stable per-booking jitter,
+    // so the customer's booked address gets a distinct, consistent pin near the provider's service area.
+    const cCenter = CITY_COORDS[p.area] || [16.5,80.6];
+    const custLat = jitter(cCenter[0], b.id+'custlat');
+    const custLng = jitter(cCenter[1], b.id+'custlng');
+    const distKm = distanceKm(p.lat, p.lng, custLat, custLng).toFixed(1);
+
+    trackingWidget = `
+    <div class="card" style="margin-top:14px;">
+      <div style="display:flex; justify-content:space-between; align-items:center; flex-wrap:wrap; gap:8px;">
+        <span class="live-badge"><span class="live-dot"></span> Live Tracking</span>
+        <span class="provider-meta mono">${b.id} · ${distKm} km</span>
+      </div>
+
+      <div class="map-box" style="margin-top:14px; height:240px;">
+        <div class="map-legend">
+          <div class="lg-row"><span class="lg-dot" style="background:var(--accent-2);"></span> ${p.name} (worker)</div>
+          <div class="lg-row"><span class="lg-dot" style="background:var(--accent);"></span> You (customer)</div>
+        </div>
+        <iframe src="${mapDirectionsEmbedUrl(p.lat, p.lng, custLat, custLng)}" loading="lazy" title="Route from worker to customer"></iframe>
+      </div>
+
+      <div class="track-path">
+        <span class="track-endpoint" style="left:-4px;" title="${p.name}">🔧</span>
+        <span class="track-endpoint-label" style="left:-10px;">Worker</span>
+        <div class="track-fill" style="width:${pct}%;"></div>
+        <div class="track-marker" style="left:${pct}%;">🚗</div>
+        <span class="track-endpoint" style="right:-4px;" title="You">🏠</span>
+        <span class="track-endpoint-label" style="right:-14px;">You</span>
+      </div>
+      <div class="track-legend">
+        <span>${pct}% of the way</span>
+        <span>${arrived ? 'Arrived' : distKm + ' km away'}</span>
+      </div>
+
+      <p style="text-align:center; margin:20px 0 0;">
+        ${!arrived
+          ? `<strong>${p.name}</strong> is heading to your address — arriving in <strong>${eta} min</strong>`
+          : `✅ <strong>${p.name}</strong> has arrived at ${b.address} and is working on your service`}
+      </p>
+    </div>`;
+  }
+
+  let reviewBlock = '';
+  if(b.stage === 'completed'){
+    reviewBlock = `
+    <div class="card" style="margin-top:18px;">
+      ${b.paymentMethod==='cod' ? `<div class="cod-note" style="margin-bottom:16px;"><span class="cod-icon">💵</span><div>Please pay <strong>${fmt(b.servicePrice)}</strong> cash directly to ${p.name} if you haven't already.</div></div>` : ''}
+      <h3 style="margin-top:0;">Rate & review ${p.name}</h3>
+      <form onsubmit="return submitReview(event,'${b.id}')">
+        <div class="star-input" id="reviewStars">
+          ${[1,2,3,4,5].map(n=>`<button type="button" class="star-btn ${n<=state.reviewStars?'filled':''}" onclick="clickStar(${n})">★</button>`).join('')}
+        </div>
+        <div class="form-group">
+          <textarea class="field" name="comment" rows="3" placeholder="How did it go?" required></textarea>
+        </div>
+        <button class="btn btn-primary" type="submit">Submit Review</button>
+      </form>
+    </div>`;
+  } else if(b.stage === 'reviewed'){
+    const r = [...p.reviews].reverse().find(x=>x.name===u.name) || p.reviews[p.reviews.length-1] || {rating:0, comment:''};
+    reviewBlock = `
+    <div class="card" style="margin-top:18px;">
+      <h3 style="margin-top:0;">Your review</h3>
+      <div class="stars">${'★'.repeat(r.rating)}${'☆'.repeat(5-r.rating)}</div>
+      <p>${r.comment}</p>
+      <button class="btn btn-ghost" onclick="nav('bookings')">Back to My Bookings</button>
+    </div>`;
+  }
+
+  return `
+  <div class="container section" style="max-width:680px; margin:0 auto;">
+    <div class="eyebrow">Step 3 of 3 · Track your service</div>
+    <h2 style="margin-top:0;">Booking ${b.id}</h2>
+    <div class="card">
+      <div class="summary-row"><span>Provider</span><span>${p.name}</span></div>
+      <div class="summary-row"><span>Service</span><span>${b.serviceName}</span></div>
+      <div class="summary-row"><span>Date & time</span><span>${b.date} · ${b.time}</span></div>
+      <div class="summary-row"><span>Address</span><span>${b.address}</span></div>
+      <div class="summary-row"><span>Payment</span><span>${paymentBadge}</span></div>
+      <div class="summary-row"><span>Status</span><span class="badge-stage dot">${labels[b.stage]}</span></div>
+      ${timeline(b.stage)}
+      ${controls ? `<div style="text-align:center; margin-top:18px;">${controls}</div>` : ''}
+    </div>
+    ${contactCard}
+    ${trackingWidget}
+    ${reviewBlock}
+  </div>`;
+}
+
+async function advanceStage(bookingId, newStage){
+  try{
+    const data = await api.advanceStage(bookingId, newStage);
+    Object.assign(getBooking(bookingId), data.booking);
+    render();
+    toast('Status updated: ' + newStage.replace('_',' '));
+  }catch(err){
+    toast(err.message);
+  }
+}
+
+function clickStar(n){
+  state.reviewStars = n;
+  render();
+}
+
+async function submitReview(e, bookingId){
+  e.preventDefault();
+  const f = e.target;
+  const b = getBooking(bookingId);
+  const p = getProvider(b.providerId);
+  if(!state.reviewStars){
+    toast('Please select a star rating');
+    return false;
+  }
+  try{
+    const data = await api.submitReview(bookingId, {
+      rating: state.reviewStars,
+      comment: f.comment.value,
+    });
+    p.reviews.push(data.review);
+    p.reviewCount = (p.reviewCount || p.reviews.length) + 1;
+    Object.assign(b, data.booking);
+    state.reviewStars = 0;
+    toast('Thanks for your review!');
+    render();
+  }catch(err){
+    toast(err.message);
+  }
+  return false;
+}
+
+function viewBookings(){
+  const u = currentUser();
+  if(!u){
+    return `<div class="container section empty-state">
+      Log in to see your bookings.<br/><br/>
+      <button class="btn btn-primary" onclick="nav('auth')">Log in / Register</button>
+    </div>`;
+  }
+  const mine = DB.bookings.filter(b=>b.userId===u.id).sort((a,b)=>b.createdAt.localeCompare(a.createdAt));
+  const stageLabels = {paid:'Payment Confirmed', accepted:'Provider Accepted', in_progress:'In Progress', completed:'Completed', reviewed:'Reviewed'};
+  const stageLabelsCod = {paid:'Booking Confirmed', accepted:'Provider Accepted', in_progress:'In Progress', completed:'Completed', reviewed:'Reviewed'};
+  return `
+  <div class="container section">
+    <div class="eyebrow">Your activity</div>
+    <h2 style="margin-top:0;">My Bookings</h2>
+    ${mine.length ? mine.map(b=>{
+      const p = getProvider(b.providerId) || {name:'Provider unavailable'};
+      const labels = b.paymentMethod==='cod' ? stageLabelsCod : stageLabels;
+      return `<div class="card" style="margin-bottom:14px; display:flex; justify-content:space-between; align-items:center; flex-wrap:wrap; gap:12px;">
+        <div>
+          <div class="provider-name">${p.name} · ${b.serviceName}</div>
+          <div class="provider-meta">${b.date} · ${b.time} · <span class="mono">${b.id}</span> · ${b.paymentMethod==='cod' ? '💵 COD' : '💳 Card'}</div>
+        </div>
+        <div style="display:flex; align-items:center; gap:12px;">
+          <span class="badge-stage dot">${labels[b.stage]}</span>
+          <button class="btn btn-ghost btn-sm" onclick="nav('status',{id:'${b.id}'})">View</button>
+        </div>
+      </div>`;
+    }).join('') : `<div class="empty-state">No bookings yet. <a href="#" onclick="nav('search');return false;">Browse services</a> to get started.</div>`}
+  </div>`;
+}
+
+function viewProfile(){
+  const u = currentUser();
+  if(!u){
+    return `<div class="container section empty-state">
+      Log in to view your profile.<br/><br/>
+      <button class="btn btn-primary" onclick="nav('auth')">Log in / Register</button>
+    </div>`;
+  }
+  const mine = DB.bookings.filter(b=>b.userId===u.id);
+  const completedCount = mine.filter(b=>b.stage==='completed' || b.stage==='reviewed').length;
+  const myReviews = [];
+  DB.providers.forEach(p=>{
+    p.reviews.forEach(r=>{
+      const match = mine.find(b=>b.providerId===p.id && b.stage==='reviewed' && r.name===u.name);
+      if(match) myReviews.push({provider:p.name, ...r});
+    });
+  });
+  const avgGiven = myReviews.length ? (myReviews.reduce((a,r)=>a+r.rating,0)/myReviews.length).toFixed(1) : '—';
+
+  if(state.editingProfile){
+    const previewUrl = typeof state.tempAvatarUrl !== 'undefined' ? state.tempAvatarUrl : (u.avatarUrl || null);
+    const cityMandals = mandalsFor(u.city);
+    return `
+    <div class="container section">
+      <div class="eyebrow">Account</div>
+      <h2 style="margin-top:0;">Edit Profile</h2>
+      <div class="card" style="max-width:520px;">
+        <form onsubmit="return saveProfile(event)">
+          <div class="form-group">
+            <label>Profile photo</label>
+            <div class="avatar-edit-row">
+              <div id="avatarPreviewWrap">${avatarHtml(u.name, previewUrl, 68, 22)}</div>
+              <div style="display:flex; flex-direction:column; gap:8px;">
+                <label class="avatar-upload-btn">
+                  📷 ${previewUrl ? 'Change photo' : 'Upload photo'}
+                  <input type="file" accept="image/*" onchange="handleAvatarFileChange(event)" />
+                </label>
+                ${previewUrl ? `<button type="button" class="avatar-remove-btn" onclick="removeAvatarPreview()">Remove photo</button>` : ''}
+              </div>
+            </div>
+          </div>
+          <div class="form-group">
+            <label>Full name</label>
+            <input class="field" name="name" value="${u.name||''}" required />
+          </div>
+          <div class="form-group">
+            <label>Mobile number</label>
+            <input class="field" type="tel" name="phone" value="${u.phone||''}" pattern="[0-9+ \-]{10,15}" title="Enter a 10-digit mobile number, e.g. 9876543210 (+91 and spaces are okay)" placeholder="10-digit mobile number" required />
+          </div>
+          <div class="form-group">
+            <label>Street / House No.</label>
+            <input class="field" name="street" value="${u.street||''}" placeholder="e.g. 12-34, Ring Road" />
+          </div>
+          <div class="form-grid-2">
+            <div class="form-group">
+              <label>City</label>
+              <select class="field" name="city" id="profileCity" required onchange="renderMandalOptions(this.value,'profileMandal')">
+                ${AP_CITIES.map(c=>`<option value="${c}" ${u.city===c?'selected':''}>${c}</option>`).join('')}
+              </select>
+            </div>
+            <div class="form-group">
+              <label>Mandal</label>
+              <select class="field" name="mandal" id="profileMandal">
+                ${cityMandals.length ? cityMandals.map(m=>`<option value="${m}" ${u.mandal===m?'selected':''}>${m}</option>`).join('') : `<option value="">Select city first</option>`}
+              </select>
+            </div>
+          </div>
+          <div class="form-group">
+            <label>Pincode</label>
+            <input class="field" name="pincode" value="${u.pincode||''}" placeholder="e.g. 520010" pattern="[0-9]{6}" title="Enter a 6-digit pincode, e.g. 522101" maxlength="6" />
+          </div>
+          <div style="display:flex; gap:10px;">
+            <button class="btn btn-primary" type="submit">Save Changes</button>
+            <button class="btn btn-ghost" type="button" onclick="state.editingProfile=false; state.tempAvatarUrl=undefined; render();">Cancel</button>
+          </div>
+        </form>
+      </div>
+    </div>`;
+  }
+
+  return `
+  <div class="container section">
+    <div class="eyebrow">Account</div>
+    <h2 style="margin-top:0;">My Profile</h2>
+    <div class="card">
+      <div class="profile-header">
+        ${avatarHtml(u.name, u.avatarUrl, 64, 20)}
+        <div>
+          <h3 style="margin:0 0 4px;">${u.name}</h3>
+          <div class="provider-meta">✉️ ${u.email}</div>
+          <div class="provider-meta">📞 ${u.phone || 'Not provided'}</div>
+          <div class="provider-meta">📍 ${[u.street, u.mandal, u.city].filter(Boolean).join(', ') || 'Not set'}${u.pincode ? ' - '+u.pincode : ''}${(!u.street && !u.mandal && !u.city) ? ', Andhra Pradesh' : ''}</div>
+          <div class="provider-meta">Member since ${u.joinedAt || '—'}</div>
+        </div>
+      </div>
+      <div class="profile-stats">
+        <div class="stat-box"><div class="num">${mine.length}</div><div class="lbl">Total Bookings</div></div>
+        <div class="stat-box"><div class="num">${completedCount}</div><div class="lbl">Completed Services</div></div>
+        <div class="stat-box"><div class="num">${myReviews.length}</div><div class="lbl">Reviews Given</div></div>
+        <div class="stat-box"><div class="num">${avgGiven}</div><div class="lbl">Avg. Rating Given</div></div>
+      </div>
+      <button class="btn btn-ghost" style="margin-top:20px;" onclick="state.editingProfile=true; state.tempAvatarUrl=(currentUser().avatarUrl||null); render();">Edit Profile</button>
+    </div>
+
+    <div class="card" style="margin-top:18px;">
+      <h3 style="margin-top:0;">My Reviews</h3>
+      ${myReviews.length ? myReviews.map(r=>`
+        <div class="review-item">
+          <div style="display:flex; justify-content:space-between;">
+            <strong>${r.provider}</strong>
+            <span class="stars">${'★'.repeat(r.rating)}${'☆'.repeat(5-r.rating)}</span>
+          </div>
+          <div class="provider-meta" style="margin:4px 0;">${r.date}</div>
+          <div>${r.comment}</div>
+        </div>
+      `).join('') : `<div class="provider-meta">You have not left any reviews yet.</div>`}
+    </div>
+  </div>`;
+}
+
+function handleAvatarFileChange(e){
+  const file = e.target.files && e.target.files[0];
+  if(!file) return;
+  if(!file.type.startsWith('image/')){
+    toast('Please choose an image file');
+    return;
+  }
+  if(file.size > 2*1024*1024){
+    toast('Please choose an image under 2MB');
+    return;
+  }
+  const reader = new FileReader();
+  reader.onload = function(ev){
+    state.tempAvatarUrl = ev.target.result;
+    render();
+  };
+  reader.readAsDataURL(file);
+}
+
+function removeAvatarPreview(){
+  state.tempAvatarUrl = null;
+  render();
+}
+
+async function saveProfile(e){
+  e.preventDefault();
+  const f = e.target;
+  const u = currentUser();
+  const avatarUrl = typeof state.tempAvatarUrl !== 'undefined' ? state.tempAvatarUrl : (u.avatarUrl || null);
+  try{
+    const data = await api.saveProfile({
+      name: f.name.value.trim() || u.name,
+      phone: normPhone(f.phone.value),
+      city: f.city.value,
+      mandal: f.mandal.value,
+      street: f.street.value.trim(),
+      pincode: f.pincode.value.trim(),
+      avatarUrl,
+    });
+    DB.currentUser = data.user;
+
+    /* Keep the linked worker listing's public name/phone/photo in sync,
+       since customers see that listing directly. (street/pincode on the
+       account itself aren't part of the backend's User model — only a
+       worker's public provider listing has its own street/pincode, set
+       at registration — so those two fields stay display-only here,
+       same as the backend's PUT /profile contract.) */
+    if(data.provider){
+      const idx = DB.providers.findIndex(pr=>pr.id===data.provider.id);
+      if(idx !== -1) DB.providers[idx] = data.provider; else DB.providers.push(data.provider);
+    }
+    await refreshProviders();
+
+    state.editingProfile = false;
+    state.tempAvatarUrl = undefined;
+    toast('Profile updated');
+    render();
+  }catch(err){
+    toast(err.message);
+  }
+  return false;
+}
+
+function myProviderProfile(){
+  const u = currentUser();
+  if(!u || u.role !== 'worker') return null;
+  return DB.providers.find(p=>p.ownerId===u.id) || null;
+}
+
+function viewWorkerDashboard(){
+  const u = currentUser();
+  if(!u || u.role !== 'worker'){
+    return `<div class="container section empty-state">
+      This dashboard is for registered workers.<br/><br/>
+      <button class="btn btn-primary" onclick="nav('auth')">Log in / Register as a worker</button>
+    </div>`;
+  }
+  const p = myProviderProfile();
+  if(!p){
+    return `<div class="container section empty-state">Your worker listing is not currently visible (it may be hidden by an administrator). Please contact support.</div>`;
+  }
+  const jobsNearby = DB.bookings.filter(b=>b.providerId===p.id);
+  const c = catInfo(p.category);
+
+  // The backend has no "list all customers" endpoint (a full customer
+  // directory isn't exposed to workers, by design), so this section
+  // degrades to its existing empty state rather than listing anyone.
+  const nearbyCustomers = [];
+
+  /* Active in-progress job for this worker gets its own live tracking card so the worker
+     can see exactly where the customer's address is relative to them, matching the customer's view. */
+  const activeJob = jobsNearby.find(b=>b.stage==='in_progress');
+  let workerTrackingWidget = '';
+  if(activeJob){
+    const eta = typeof activeJob.trackingETA === 'number' ? activeJob.trackingETA : 0;
+    const initial = activeJob.trackingETAInitial || 15;
+    const pct = Math.min(100, Math.round(((initial - eta) / initial) * 100));
+    const arrived = eta <= 0;
+    const cCenter = CITY_COORDS[p.area] || [16.5,80.6];
+    const custLat = jitter(cCenter[0], activeJob.id+'custlat');
+    const custLng = jitter(cCenter[1], activeJob.id+'custlng');
+    const distKm = distanceKm(p.lat, p.lng, custLat, custLng).toFixed(1);
+    workerTrackingWidget = `
+    <div class="card" style="margin-top:18px;">
+      <div style="display:flex; justify-content:space-between; align-items:center; flex-wrap:wrap; gap:8px;">
+        <span class="live-badge"><span class="live-dot"></span> En route to customer</span>
+        <span class="provider-meta mono">${activeJob.id} · ${distKm} km</span>
+      </div>
+      <p class="provider-meta" style="margin:8px 0 0;">Delivering: <strong>${activeJob.serviceName}</strong> to ${activeJob.address}${activeJob.paymentMethod==='cod' ? ` · 💵 collect ${fmt(activeJob.servicePrice)} cash on arrival` : ' · 💳 already paid online'}</p>
+      <div class="map-box" style="margin-top:14px; height:220px;">
+        <div class="map-legend">
+          <div class="lg-row"><span class="lg-dot" style="background:var(--accent-2);"></span> You (worker)</div>
+          <div class="lg-row"><span class="lg-dot" style="background:var(--accent);"></span> Customer</div>
+        </div>
+        <iframe src="${mapDirectionsEmbedUrl(p.lat, p.lng, custLat, custLng)}" loading="lazy" title="Route to customer"></iframe>
+      </div>
+      <div class="track-path">
+        <span class="track-endpoint" style="left:-4px;">🔧</span>
+        <span class="track-endpoint-label" style="left:-8px;">You</span>
+        <div class="track-fill" style="width:${pct}%;"></div>
+        <div class="track-marker" style="left:${pct}%;">🚗</div>
+        <span class="track-endpoint" style="right:-4px;">🏠</span>
+        <span class="track-endpoint-label" style="right:-16px;">Customer</span>
+      </div>
+      <div class="track-legend">
+        <span>${pct}% of the way</span>
+        <span>${arrived ? 'Arrived at customer' : distKm + ' km to go'}</span>
+      </div>
+      <div style="text-align:center; margin-top:14px;">
+        <button class="btn btn-primary btn-sm" onclick="nav('status',{id:'${activeJob.id}'})">Open Job Details</button>
+      </div>
+    </div>`;
+  }
+
+  return `
+  <div class="container section">
+    <div class="eyebrow">Worker dashboard</div>
+    <h2 style="margin-top:0;">Welcome, ${u.name.split(' ')[0]} <span class="worker-badge">✓ Verified Pro</span></h2>
+
+    <div class="card" style="margin-bottom:18px;">
+      <div class="provider-top" style="margin-bottom:10px;">
+        ${avatarHtml(p.name, p.avatarUrl, 48, 15)}
+        <div>
+          <div class="provider-name">${p.name}</div>
+          <div class="provider-meta">${c.icon} ${c.name} · ${p.mandal}, ${p.area} - ${p.pincode}</div>
+        </div>
+      </div>
+      <button class="btn btn-ghost btn-sm" style="margin-bottom:10px;" onclick="nav('profile')">Edit Profile / Photo</button>
+      <p class="provider-meta">${p.bio}</p>
+      <div class="profile-stats">
+        <div class="stat-box"><div class="num">${jobsNearby.length}</div><div class="lbl">Bookings Received</div></div>
+        <div class="stat-box"><div class="num">${reviewCountDisplay(p)}</div><div class="lbl">Total Reviews</div></div>
+        <div class="stat-box"><div class="num">${avgRating(p) ? avgRating(p).toFixed(1) : '—'}</div><div class="lbl">Avg. Rating</div></div>
+        <div class="stat-box"><div class="num">${p.services.length}</div><div class="lbl">Services Listed</div></div>
+      </div>
+    </div>
+
+    ${workerTrackingWidget}
+
+    <div class="grid grid-2" style="margin-top:${workerTrackingWidget ? '18px' : '0'};">
+      <div class="card">
+        <h3 style="margin-top:0;">Your listed services</h3>
+        ${p.services.map(s=>`<div class="summary-row"><span>${s.name}</span><span class="price-tag">${fmt(s.price)}</span></div>`).join('')}
+        <button class="btn btn-ghost btn-block" style="margin-top:14px;" onclick="nav('provider',{id:'${p.id}'})">View Public Profile</button>
+      </div>
+      <div class="card">
+        <h3 style="margin-top:0;">Recent bookings</h3>
+        ${jobsNearby.length ? jobsNearby.slice(0,5).map(b=>`
+          <div class="summary-row"><span>${b.serviceName} · ${b.date}${b.paymentMethod==='cod' ? ' · 💵 COD' : ' · 💳 Card'}</span><span class="badge-stage dot">${b.stage}</span></div>
+        `).join('') : `<div class="provider-meta">No bookings yet. Customers will appear here once they book you.</div>`}
+      </div>
+    </div>
+
+    <div class="card" style="margin-top:18px;">
+      <div style="display:flex; justify-content:space-between; align-items:center; flex-wrap:wrap; gap:10px;">
+        <h3 style="margin:0;">Find customers near you</h3>
+        <span class="live-badge" style="color:var(--accent-2);"><span class="live-dot" style="background:var(--accent-2);"></span> ${p.area}</span>
+      </div>
+      <p class="provider-meta">Browse ${state.filterCategory||c.name.toLowerCase()} requests and household areas around your service radius in ${p.mandal}.</p>
+      <div class="map-box">
+        <iframe src="${mapSearchEmbedUrl(c.name + ' service requests near ' + p.mandal + ' ' + p.area + ' Andhra Pradesh', 13)}" loading="lazy" title="Customers near you"></iframe>
+      </div>
+      ${nearbyCustomers.length ? `
+        <div style="margin-top:14px;">
+          <div class="provider-meta" style="margin-bottom:8px;">Registered customers in ${p.area}:</div>
+          ${nearbyCustomers.map(cu=>`<div class="summary-row"><span>${cu.name}</span><span class="provider-meta">${cu.mandal||''}</span></div>`).join('')}
+        </div>` : `<div class="provider-meta" style="margin-top:12px;">No registered customers in your city yet — check back soon.</div>`}
+    </div>
+  </div>`;
+}
+
+function viewFindMap(){
+  const results = DB.providers.filter(p=>{
+    const matchCat = !state.filterCategory || p.category === state.filterCategory;
+    const matchLoc = !state.filterLocation || p.area.toLowerCase().includes(state.filterLocation.toLowerCase());
+    const matchRating = !state.filterRating || avgRating(p) >= Number(state.filterRating);
+    return matchCat && matchLoc && matchRating;
+  });
+  const query = [state.filterCategory ? catInfo(state.filterCategory).name : 'local services', state.filterLocation || 'Andhra Pradesh'].join(' near ');
+  return `
+  <div class="container section">
+    <div class="eyebrow">Map view</div>
+    <h2 style="margin-top:0;">Find a worker near you</h2>
+    <div class="card" style="display:flex; gap:12px; flex-wrap:wrap; margin-bottom:18px;">
+      <select class="field" style="max-width:220px;" onchange="state.filterCategory=this.value; render();">
+        <option value="">All services</option>
+        ${categories.map(c=>`<option value="${c.id}" ${state.filterCategory===c.id?'selected':''}>${c.icon} ${c.name}</option>`).join('')}
+      </select>
+      <select class="field" style="max-width:220px;" onchange="state.filterLocation=this.value; render();">
+        <option value="">All Andhra Pradesh</option>
+        ${AP_CITIES.map(c=>`<option value="${c}" ${state.filterLocation===c?'selected':''}>${c}</option>`).join('')}
+      </select>
+      <select class="field" style="max-width:200px;" onchange="state.filterRating=this.value; render();">
+        <option value="">All ratings</option>
+        <option value="4" ${state.filterRating==='4'?'selected':''}>★★★★ & up (4+)</option>
+        <option value="3" ${state.filterRating==='3'?'selected':''}>★★★ & up (3+)</option>
+        <option value="2" ${state.filterRating==='2'?'selected':''}>★★ & up (2+)</option>
+        <option value="1" ${state.filterRating==='1'?'selected':''}>★ & up (1+)</option>
+      </select>
+    </div>
+    <div class="map-box" style="height:360px; margin-bottom:20px;">
+      <iframe src="${mapSearchEmbedUrl(query, state.filterLocation?13:8)}" loading="lazy" title="Workers near you"></iframe>
+    </div>
+    <h3>${results.length} pro${results.length===1?'':'s'} found</h3>
+    <div class="grid grid-3">
+      ${results.map(p=>`
+        <div class="card provider-card">
+          <div class="provider-top">
+            ${avatarHtml(p.name, p.avatarUrl, 48, 15)}
+            <div>
+              <div class="provider-name">${p.name}</div>
+              <div class="provider-meta">${catInfo(p.category).icon} ${p.mandal}, ${p.area}</div>
+            </div>
+          </div>
+          <div>${starsDisplay(avgRating(p))} <span class="provider-meta">(${reviewCountDisplay(p)})</span></div>
+          <button class="btn btn-ghost btn-block" onclick="nav('provider',{id:'${p.id}'})">View Profile</button>
+        </div>
+      `).join('')}
+    </div>
+  </div>`;
+}
+
+function viewAuth(){
+  return `
+  <div class="container section">
+    <div class="card auth-card" style="max-width:${state.authTab==='register' && state.authRole==='worker' ? '560px' : '420px'};">
+      <div class="tabs">
+        <button class="tab-btn ${state.authTab==='login'?'active':''}" onclick="state.authTab='login'; render();">Log In</button>
+        <button class="tab-btn ${state.authTab==='register'?'active':''}" onclick="state.authTab='register'; render();">Register</button>
+      </div>
+      ${state.authTab==='login' ? `
+        <form onsubmit="return handleLogin(event)">
+          <div class="form-group">
+            <label>Email</label>
+            <input class="field" type="email" name="email" required />
+          </div>
+          <div class="form-group">
+            <label>Password</label>
+            <input class="field" type="password" name="password" required />
+          </div>
+          <button class="btn btn-primary btn-block" type="submit">Log In</button>
+        </form>
+      ` : `
+        <div class="role-toggle">
+          <button type="button" class="${state.authRole==='customer'?'active':''}" onclick="state.authRole='customer'; render();">I need a service</button>
+          <button type="button" class="${state.authRole==='worker'?'active':''}" onclick="state.authRole='worker'; render();">I'm a worker / pro</button>
+        </div>
+        ${state.authRole==='customer' ? viewCustomerRegisterForm() : viewWorkerRegisterForm()}
+      `}
+    </div>
+  </div>`;
+}
+
+function viewCustomerRegisterForm(){
+  return `
+  <form onsubmit="return handleRegister(event)">
+    <div class="form-group">
+      <label>Full name</label>
+      <input class="field" name="name" required />
+    </div>
+    <div class="form-group">
+      <label>Email</label>
+      <input class="field" type="email" name="email" required />
+    </div>
+    <div class="form-group">
+      <label>Phone number</label>
+      <input class="field" type="tel" name="phone" placeholder="10-digit mobile number" pattern="[0-9+ \-]{10,15}" title="Enter a 10-digit mobile number, e.g. 9876543210 (+91 and spaces are okay)" required />
+    </div>
+    <div class="form-group">
+      <label>City</label>
+      <select class="field" name="city" required onchange="renderMandalOptions(this.value,'mandal')">
+        <option value="">Select your city</option>
+        ${AP_CITIES.map(c=>`<option value="${c}">${c}</option>`).join('')}
+      </select>
+    </div>
+    <div class="form-group">
+      <label>Mandal</label>
+      <select class="field" name="mandal" id="mandal">
+        <option value="">Select city first</option>
+      </select>
+    </div>
+    <div class="form-group">
+      <label>Password</label>
+      <input class="field" type="password" name="password" required minlength="6" />
+    </div>
+    <button class="btn btn-primary btn-block" type="submit">Create Account</button>
+  </form>`;
+}
+
+function viewWorkerRegisterForm(){
+  return `
+  <form onsubmit="return handleWorkerRegister(event)">
+    <div class="form-group">
+      <label>Full name</label>
+      <input class="field" name="name" required />
+    </div>
+    <div class="form-grid-2">
+      <div class="form-group">
+        <label>Email</label>
+        <input class="field" type="email" name="email" required />
+      </div>
+      <div class="form-group">
+        <label>Phone number</label>
+        <input class="field" type="tel" name="phone" placeholder="10-digit mobile number" pattern="[0-9+ \-]{10,15}" title="Enter a 10-digit mobile number, e.g. 9876543210 (+91 and spaces are okay)" required />
+      </div>
+    </div>
+
+    <div class="form-group">
+      <label>Street / House No.</label>
+      <input class="field" name="street" placeholder="e.g. 5-21, Market Lane" required />
+    </div>
+    <div class="form-grid-2">
+      <div class="form-group">
+        <label>City</label>
+        <select class="field" name="city" id="workerCity" required onchange="renderMandalOptions(this.value,'workerMandal')">
+          <option value="">Select city</option>
+          ${AP_CITIES.map(c=>`<option value="${c}">${c}</option>`).join('')}
+        </select>
+      </div>
+      <div class="form-group">
+        <label>Mandal</label>
+        <select class="field" name="mandal" id="workerMandal" required>
+          <option value="">Select city first</option>
+        </select>
+      </div>
+    </div>
+    <div class="form-group">
+      <label>Pincode</label>
+      <input class="field" name="pincode" placeholder="e.g. 520010" pattern="[0-9]{6}" title="Enter a 6-digit pincode, e.g. 522101" maxlength="6" required />
+    </div>
+
+    <div class="form-group">
+      <label>Service category</label>
+      <div class="chip-select">
+        ${categories.map(c=>`<span class="chip ${state.workerCategories.includes(c.id)?'selected':''}" onclick="toggleWorkerCategory('${c.id}')">${c.icon} ${c.name}</span>`).join('')}
+      </div>
+    </div>
+
+    <div class="form-group">
+      <label>Short bio / experience</label>
+      <input class="field" name="bio" placeholder="e.g. 6 years experience, available all week" required />
+    </div>
+
+    <div class="form-group">
+      <label>Services you offer & pricing</label>
+      <div id="workerServiceRows">
+        ${state.workerServiceRows.map((row,i)=>`
+          <div class="service-row-input">
+            <input class="field" placeholder="Service name" value="${row.name}" oninput="state.workerServiceRows[${i}].name=this.value" />
+            <input class="field" style="max-width:120px;" type="number" min="0" placeholder="Price ₹" value="${row.price}" oninput="state.workerServiceRows[${i}].price=this.value" />
+            <button type="button" class="remove-row" onclick="removeWorkerServiceRow(${i})" title="Remove">×</button>
+          </div>
+        `).join('')}
+      </div>
+      <button type="button" class="btn btn-ghost btn-sm" onclick="addWorkerServiceRow()">+ Add another service</button>
+    </div>
+
+    <div class="form-group">
+      <label>Password</label>
+      <input class="field" type="password" name="password" required minlength="6" />
+    </div>
+    <button class="btn btn-primary btn-block" type="submit">Register as a Worker</button>
+    <p class="provider-meta" style="text-align:center; margin-top:10px;">Your profile will be listed for customers to find and book, with a map pin at your service location.</p>
+  </form>`;
+}
+
+function renderMandalOptions(city, selectId){
+  const sel = document.getElementById(selectId);
+  if(!sel) return;
+  const mandals = mandalsFor(city);
+  sel.innerHTML = mandals.length
+    ? mandals.map(m=>`<option value="${m}">${m}</option>`).join('')
+    : `<option value="">No mandals found</option>`;
+}
+
+/* render() rebuilds the whole page, which would wipe everything typed into the
+   registration form. Snapshot the form's values first and restore them after. */
+function renderKeepForm(){
+  const form = document.querySelector('.auth-card form');
+  const saved = {};
+  if(form) Array.from(form.elements).forEach(el=>{ if(el.name && el.type !== 'password') saved[el.name] = el.value; });
+  const pw = form && form.elements.password ? form.elements.password.value : '';
+  render();
+  const nf = document.querySelector('.auth-card form');
+  if(!nf) return;
+  if(saved.city){ const cs = nf.elements.city; if(cs){ cs.value = saved.city; renderMandalOptions(saved.city, nf.elements.mandal.id); } }
+  Object.keys(saved).forEach(k=>{ if(nf.elements[k] && k !== 'city') nf.elements[k].value = saved[k]; });
+  if(nf.elements.password) nf.elements.password.value = pw;
+}
+function toggleWorkerCategory(id){
+  const idx = state.workerCategories.indexOf(id);
+  if(idx === -1) state.workerCategories.push(id); else state.workerCategories.splice(idx,1);
+  renderKeepForm();
+}
+
+function addWorkerServiceRow(){
+  state.workerServiceRows.push({name:'',price:''});
+  renderKeepForm();
+}
+function removeWorkerServiceRow(i){
+  state.workerServiceRows.splice(i,1);
+  if(!state.workerServiceRows.length) state.workerServiceRows.push({name:'',price:''});
+  renderKeepForm();
+}
+
+function postLoginRedirect(){
+  if(state.redirect){
+    const {view,params} = state.redirect;
+    state.redirect = null;
+    nav(view, params);
+  } else {
+    nav('home');
+  }
+}
+
+async function handleLogin(e){
+  e.preventDefault();
+  const f = e.target;
+  try{
+    const data = await api.login({
+      email: f.email.value.trim().toLowerCase(),
+      password: f.password.value,
+    });
+    DB.currentUser = data.user;
+    await refreshBookings();
+    if(data.user.role === 'admin'){ window.location.href = 'admin.html'; return false; }
+    toast('Welcome back, ' + data.user.name.split(' ')[0] + '!');
+    postLoginRedirect();
+  }catch(err){
+    toast(err.message);
+  }
+  return false;
+}
+
+async function handleRegister(e){
+  e.preventDefault();
+  const f = e.target;
+  try{
+    const data = await api.register({
+      name: f.name.value.trim(),
+      email: f.email.value.trim().toLowerCase(),
+      phone: normPhone(f.phone.value),
+      city: f.city.value,
+      mandal: f.mandal.value,
+      password: f.password.value,
+    });
+    DB.currentUser = data.user;
+    DB.bookings = [];
+    toast('Account created — welcome, ' + data.user.name.split(' ')[0] + '!');
+    postLoginRedirect();
+  }catch(err){
+    toast(err.message);
+  }
+  return false;
+}
+
+async function handleWorkerRegister(e){
+  e.preventDefault();
+  const f = e.target;
+  if(!state.workerCategories.length){
+    toast('Please select at least one service category');
+    return false;
+  }
+  const services = state.workerServiceRows
+    .filter(r=>r.name.trim() && r.price !== '')
+    .map(r=>({name:r.name.trim(), price:Number(r.price)}));
+  if(!services.length){
+    toast('Please add at least one service with a price');
+    return false;
+  }
+  try{
+    const data = await api.registerWorker({
+      name: f.name.value.trim(),
+      email: f.email.value.trim().toLowerCase(),
+      phone: normPhone(f.phone.value),
+      city: f.city.value,
+      mandal: f.mandal.value,
+      street: f.street.value.trim(),
+      pincode: f.pincode.value.trim(),
+      bio: f.bio.value.trim(),
+      password: f.password.value,
+      categories: state.workerCategories.slice(),
+      services,
+    });
+    DB.currentUser = data.user;
+    DB.bookings = [];
+    DB.providers.push(data.provider);
+
+    state.workerCategories = [];
+    state.workerServiceRows = [{name:'',price:''}];
+    toast('Worker profile created — you are now listed for customers to find!');
+    nav('worker-dashboard');
+  }catch(err){
+    toast(err.message);
+  }
+  return false;
+}
+
+async function logout(){
+  try{ await api.logout(); }catch(err){ /* proceed with local logout regardless */ }
+  DB.currentUser = null;
+  DB.bookings = [];
+  toast('Logged out');
+  nav('home');
+}
+
+/* ---------------- Render ---------------- */
+function render(){
+  let body = '';
+  switch(route.view){
+    case 'home': body = viewHome(); break;
+    case 'search': body = viewSearch(); break;
+    case 'provider': body = viewProvider(route.params); break;
+    case 'booking': body = viewBooking(route.params); break;
+    case 'payment': body = viewPayment(route.params); break;
+    case 'status': body = viewStatus(route.params); break;
+    case 'bookings': body = viewBookings(); break;
+    case 'profile': body = viewProfile(); break;
+    case 'auth': body = viewAuth(); break;
+    case 'worker-dashboard': body = viewWorkerDashboard(); break;
+    case 'find-map': body = viewFindMap(); break;
+    default: body = viewHome();
+  }
+  document.getElementById('app').innerHTML = navbar() + body + footer();
+}
+
+/* ---------------- Boot ---------------- */
+/* Loads session + provider directory from the Flask API before the first
+   render, replacing the old "everything is a hardcoded array" startup. */
+async function init(){
+  document.getElementById('app').innerHTML = `<div class="container section empty-state">Loading Radius…</div>`;
+  try{
+    const me = await api.me();
+    DB.currentUser = me.user;
+    await refreshProviders();
+    await refreshBookings();
+  }catch(err){
+    document.getElementById('app').innerHTML = `<div class="container section empty-state">
+      Could not reach the Radius API at <span class="mono">${API_BASE}</span>.<br/><br/>
+      Make sure the Flask backend is running (run <span class="mono">python start.py</span>),
+      and that this page is served from an origin listed in its <span class="mono">CORS_ORIGINS</span>
+      (not opened directly as a <span class="mono">file://</span> URL).<br/><br/>
+      <button class="btn btn-primary" onclick="init()">Retry</button>
+    </div>`;
+    return;
+  }
+  render();
+}
+
+init();
+</script>
+</body>
+</html>

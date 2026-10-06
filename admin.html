@@ -1,0 +1,249 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1" />
+<title>Radius — Admin Portal</title>
+<style>
+:root{--bg:#f5f6fa;--surface:#fff;--surface2:#eef0f6;--text:#1b2030;--muted:#667089;--line:#dde1ec;--accent:#4f46e5;--ok:#16a34a;--warn:#d97706;--bad:#dc2626}
+@media (prefers-color-scheme:dark){:root{--bg:#0f1220;--surface:#171b2e;--surface2:#1f2440;--text:#e8eaf6;--muted:#9aa3c4;--line:#2a3050;--accent:#818cf8}}
+*{box-sizing:border-box}body{margin:0;font:14px/1.5 system-ui,-apple-system,Segoe UI,Roboto,sans-serif;background:var(--bg);color:var(--text)}
+a{color:var(--accent)}button,input,select,textarea{font:inherit;color:inherit}
+.layout{display:flex;min-height:100vh}.side{width:210px;background:var(--surface);border-right:1px solid var(--line);padding:18px 12px;position:sticky;top:0;height:100vh;display:flex;flex-direction:column;gap:4px}
+.brand{font-weight:700;font-size:18px;padding:4px 10px 14px}.brand small{display:block;font-weight:500;font-size:11px;color:var(--muted)}
+.side button.nav{text-align:left;background:none;border:0;padding:9px 12px;border-radius:8px;cursor:pointer;color:var(--muted)}
+.side button.nav.active,.side button.nav:hover{background:var(--surface2);color:var(--text)}
+.side .spacer{flex:1}.main{flex:1;padding:24px;min-width:0}
+h1{margin:0 0 18px;font-size:22px}.grid{display:grid;gap:14px}.g4{grid-template-columns:repeat(auto-fit,minmax(170px,1fr))}.g2{grid-template-columns:repeat(auto-fit,minmax(300px,1fr))}
+.card{background:var(--surface);border:1px solid var(--line);border-radius:12px;padding:16px}.stat .num{font-size:26px;font-weight:700}.stat .lbl{color:var(--muted);font-size:12px}
+.toolbar{display:flex;gap:10px;flex-wrap:wrap;margin-bottom:14px}
+.field{padding:8px 10px;border:1px solid var(--line);border-radius:8px;background:var(--surface);min-width:0}.toolbar .field{min-width:160px}
+.btn{padding:7px 12px;border-radius:8px;border:1px solid var(--line);background:var(--surface);cursor:pointer}.btn:hover{background:var(--surface2)}
+.btn.primary{background:var(--accent);border-color:var(--accent);color:#fff}.btn.danger{color:var(--bad);border-color:var(--bad)}.btn.sm{padding:4px 9px;font-size:12px}
+.tablewrap{overflow-x:auto;background:var(--surface);border:1px solid var(--line);border-radius:12px}
+table{width:100%;border-collapse:collapse}th,td{text-align:left;padding:10px 12px;border-bottom:1px solid var(--line);white-space:nowrap}
+th{font-size:12px;color:var(--muted);font-weight:600;background:var(--surface2)}tr:last-child td{border-bottom:0}td.wrap{white-space:normal;min-width:200px}
+.pill{display:inline-block;padding:2px 9px;border-radius:99px;font-size:12px;background:var(--surface2);border:1px solid var(--line)}
+.pill.ok{color:var(--ok);border-color:var(--ok)}.pill.bad{color:var(--bad);border-color:var(--bad)}.pill.warn{color:var(--warn);border-color:var(--warn)}
+.bar{height:8px;border-radius:99px;background:var(--surface2);overflow:hidden;margin:4px 0 10px}.bar>i{display:block;height:100%;background:var(--accent)}
+.row{display:flex;justify-content:space-between;gap:10px}.muted{color:var(--muted)}.actions{display:flex;gap:6px}
+.modal-bg{position:fixed;inset:0;background:rgba(0,0,0,.5);display:flex;align-items:flex-start;justify-content:center;padding:30px 12px;overflow:auto;z-index:20}
+.modal{background:var(--surface);border-radius:14px;padding:20px;width:100%;max-width:560px;border:1px solid var(--line)}
+.modal h2{margin:0 0 14px;font-size:18px}.fg{margin-bottom:12px}.fg label{display:block;font-size:12px;color:var(--muted);margin-bottom:3px}.fg .field{width:100%}
+.two{display:grid;grid-template-columns:1fr 1fr;gap:10px}.chips{display:flex;flex-wrap:wrap;gap:6px}
+.chip{padding:4px 10px;border:1px solid var(--line);border-radius:99px;cursor:pointer;font-size:12px;user-select:none}.chip.on{background:var(--accent);color:#fff;border-color:var(--accent)}
+.svc{display:flex;gap:6px;margin-bottom:6px}.svc input:last-of-type{max-width:100px}
+.login{max-width:360px;margin:12vh auto;padding:0 14px}.login .card{padding:24px}.err{color:var(--bad);margin:8px 0 0;min-height:18px}
+.toast{position:fixed;bottom:20px;right:20px;background:var(--text);color:var(--bg);padding:10px 16px;border-radius:10px;z-index:50}
+@media(max-width:760px){.layout{flex-direction:column}.side{width:auto;height:auto;position:static;flex-direction:row;flex-wrap:wrap}.side .spacer{display:none}.brand{width:100%}}
+</style>
+</head>
+<body>
+<div id="root"></div>
+<script>
+const API = location.protocol === 'file:' ? 'http://localhost:5000'
+  : (location.port === '5500' ? location.protocol + '//' + location.hostname + ':5000' : '');
+let me = null, tab = 'dashboard', cats = [], cities = [];
+const filters = {users:{q:'',role:''}, providers:{q:'',category:''}, bookings:{q:'',stage:''}};
+const STAGES = ['paid','accepted','in_progress','completed','reviewed'];
+const $ = s => document.querySelector(s);
+
+async function call(path, opts = {}){
+  let res;
+  try { res = await fetch(API + path, {credentials:'include', headers:{'Content-Type':'application/json'}, ...opts}); }
+  catch(e){ throw new Error('Cannot reach the API at ' + API + ' — is the backend running?'); }
+  let data = null; try { data = await res.json(); } catch(e){}
+  if(!res.ok) throw new Error((data && data.error) || 'Request failed (' + res.status + ')');
+  return data;
+}
+const send = (m, path, body) => call(path, {method:m, body: body ? JSON.stringify(body) : undefined});
+
+/* Server stores text HTML-escaped; normalise then escape again so output is always safe. */
+const dec = s => { const t = document.createElement('textarea'); t.innerHTML = s == null ? '' : String(s); return t.value; };
+const safe = s => dec(s).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;').replace(/'/g,'&#39;');
+const inr = n => '₹' + Number(n || 0).toLocaleString('en-IN');
+const catName = id => (cats.find(c => c.id === id) || {name:id, icon:'🛠️'});
+function toast(m){ const e = document.createElement('div'); e.className = 'toast'; e.textContent = m; document.body.appendChild(e); setTimeout(() => e.remove(), 2800); }
+const fail = e => toast(e.message);
+
+/* ---------- login ---------- */
+function showLogin(msg){
+  $('#root').innerHTML = `<div class="login"><div class="card">
+    <h1 style="font-size:20px">Radius Admin</h1><p class="muted" style="margin-top:-8px">Sign in with an administrator account.</p>
+    <form onsubmit="return doLogin(event)">
+      <div class="fg"><label>Email</label><input class="field" name="email" type="email" required autofocus></div>
+      <div class="fg"><label>Password</label><input class="field" name="password" type="password" required></div>
+      <button class="btn primary" style="width:100%">Sign in</button>
+      <p class="err" id="lerr">${safe(msg || '')}</p>
+    </form><p class="muted" style="margin:10px 0 0"><a href="Radius.html">← Back to the site</a></p></div></div>`;
+}
+async function doLogin(e){
+  e.preventDefault();
+  try {
+    const d = await send('POST', '/api/auth/login', {email:e.target.email.value, password:e.target.password.value});
+    if(d.user.role !== 'admin'){ await send('POST', '/api/auth/logout'); throw new Error('This account is not an administrator.'); }
+    me = d.user; await boot();
+  } catch(err){ $('#lerr').textContent = err.message; }
+  return false;
+}
+async function logout(){ try { await send('POST', '/api/auth/logout'); } catch(e){} me = null; showLogin(); }
+
+/* ---------- shell ---------- */
+function shell(){
+  const nav = (k, label) => `<button class="nav ${tab===k?'active':''}" onclick="go('${k}')">${label}</button>`;
+  $('#root').innerHTML = `<div class="layout"><aside class="side">
+    <div class="brand">Radius<small>Admin Portal</small></div>
+    ${nav('dashboard','📊 Dashboard')}${nav('users','👥 Users')}${nav('providers','🛠️ Providers')}${nav('bookings','📅 Bookings')}${nav('reviews','⭐ Reviews')}
+    <div class="spacer"></div><div class="muted" style="padding:0 10px;font-size:12px">${safe(me.name)}<br>${safe(me.email)}</div>
+    <a class="btn sm" style="text-align:center;text-decoration:none;color:inherit" href="Radius.html">View site</a>
+    <button class="btn sm" onclick="logout()">Log out</button></aside><main class="main" id="main"></main></div>`;
+}
+async function go(t){ tab = t; shell(); await load(); }
+async function load(){
+  $('#main').innerHTML = '<p class="muted">Loading…</p>';
+  try { await ({dashboard:vDash, users:vUsers, providers:vProviders, bookings:vBookings, reviews:vReviews})[tab](); }
+  catch(e){ $('#main').innerHTML = `<div class="card">${safe(e.message)}</div>`; }
+}
+
+/* ---------- dashboard ---------- */
+async function vDash(){
+  const s = await call('/api/admin/stats'), c = s.counts, max = Math.max(1, ...Object.values(s.bookingsByStage));
+  const catMax = Math.max(1, ...s.bookingsByCategory.map(x => x.count));
+  const stat = (n, l) => `<div class="card stat"><div class="num">${n}</div><div class="lbl">${l}</div></div>`;
+  $('#main').innerHTML = `<h1>Dashboard</h1>
+  <div class="grid g4">${stat(c.users,'Total users')}${stat(c.customers,'Customers')}${stat(c.workers,'Workers')}${stat(c.providers,'Provider listings')}
+  ${stat(c.bookings,'Bookings')}${stat(c.reviews,'Reviews')}${stat(c.suspended,'Suspended accounts')}${stat(c.hiddenProviders,'Hidden listings')}</div>
+  <div class="grid g4" style="margin-top:14px">${stat(inr(s.revenue.collectedOnline),'Collected online (card)')}${stat(inr(s.revenue.codPending),'Cash on delivery pending')}${stat(inr(s.revenue.completedValue),'Value of completed jobs')}</div>
+  <div class="grid g2" style="margin-top:14px">
+   <div class="card"><b>Bookings by stage</b><div style="margin-top:10px">${STAGES.map(k=>`<div class="row"><span>${k.replace('_',' ')}</span><b>${s.bookingsByStage[k]}</b></div><div class="bar"><i style="width:${s.bookingsByStage[k]/max*100}%"></i></div>`).join('')}</div></div>
+   <div class="card"><b>Bookings by category</b><div style="margin-top:10px">${s.bookingsByCategory.length ? s.bookingsByCategory.map(x=>`<div class="row"><span>${catName(x.category).icon} ${safe(catName(x.category).name)}</span><b>${x.count}</b></div><div class="bar"><i style="width:${x.count/catMax*100}%"></i></div>`).join('') : '<span class="muted">No bookings yet.</span>'}</div></div></div>
+  <h3>Recent bookings</h3>${bookingTable(s.recentBookings, false)}`;
+}
+
+/* ---------- users ---------- */
+async function vUsers(){
+  const f = filters.users, qs = new URLSearchParams({q:f.q, role:f.role});
+  const {users} = await call('/api/admin/users?' + qs);
+  $('#main').innerHTML = `<h1>Users <span class="muted" style="font-size:14px">(${users.length})</span></h1>
+  <div class="toolbar"><input class="field" id="uq" placeholder="Search name, email, phone, city" value="${safe(f.q)}" onkeydown="if(event.key==='Enter'){filters.users.q=this.value;load()}">
+  <select class="field" onchange="filters.users.role=this.value;load()">${['','customer','worker','admin'].map(r=>`<option value="${r}" ${f.role===r?'selected':''}>${r||'All roles'}</option>`).join('')}</select>
+  <button class="btn" onclick="filters.users.q=$('#uq').value;load()">Search</button></div>
+  <div class="tablewrap"><table><tr><th>ID</th><th>Name</th><th>Email</th><th>Phone</th><th>City</th><th>Role</th><th>Bookings</th><th>Status</th><th>Joined</th><th></th></tr>
+  ${users.map(u=>`<tr><td>${safe(u.id)}</td><td>${safe(u.name)}</td><td>${safe(u.email)}</td><td>${safe(u.phone)}</td><td>${safe(u.city)}</td>
+  <td><span class="pill ${u.role==='admin'?'warn':''}">${u.role}</span></td><td>${u.bookingCount}</td>
+  <td><span class="pill ${u.isActive?'ok':'bad'}">${u.isActive?'Active':'Suspended'}</span></td><td>${safe(u.joinedAt)}</td>
+  <td><div class="actions"><button class="btn sm" onclick='editUser(${JSON.stringify(u).replace(/'/g,"&#39;")})'>Edit</button>
+  ${u.id===me.id?'':`<button class="btn sm" onclick="toggleUser('${u.id}',${!u.isActive})">${u.isActive?'Suspend':'Activate'}</button><button class="btn sm danger" onclick="delUser('${u.id}')">Delete</button>`}</div></td></tr>`).join('') || '<tr><td colspan="10" class="muted">No users found.</td></tr>'}</table></div>`;
+}
+function modal(html){ closeModal(); const d = document.createElement('div'); d.className = 'modal-bg'; d.id = 'modal'; d.innerHTML = `<div class="modal">${html}</div>`; d.addEventListener('mousedown', e => { if(e.target === d) closeModal(); }); document.body.appendChild(d); }
+function closeModal(){ const m = $('#modal'); if(m) m.remove(); }
+function editUser(u){
+  modal(`<h2>Edit user ${safe(u.id)}</h2><form onsubmit="return saveUser(event,'${u.id}')">
+  <div class="two"><div class="fg"><label>Name</label><input class="field" name="name" value="${safe(u.name)}" required></div>
+  <div class="fg"><label>Email</label><input class="field" name="email" type="email" value="${safe(u.email)}" required></div></div>
+  <div class="two"><div class="fg"><label>Phone</label><input class="field" name="phone" value="${safe(u.phone)}"></div>
+  <div class="fg"><label>City</label><select class="field" name="city">${cities.map(c=>`<option ${c===u.city?'selected':''}>${safe(c)}</option>`).join('')}</select></div></div>
+  <div class="two"><div class="fg"><label>Mandal</label><input class="field" name="mandal" value="${safe(u.mandal)}"></div>
+  <div class="fg"><label>Role</label><select class="field" name="role" ${u.id===me.id?'disabled':''}>${['customer','worker','admin'].map(r=>`<option ${r===u.role?'selected':''}>${r}</option>`).join('')}</select></div></div>
+  <div class="fg"><label>Set new password (leave blank to keep)</label><input class="field" name="newPassword" type="password" minlength="6" autocomplete="new-password"></div>
+  <div class="actions" style="justify-content:flex-end"><button type="button" class="btn" onclick="closeModal()">Cancel</button><button class="btn primary">Save</button></div></form>`);
+}
+async function saveUser(e, id){
+  e.preventDefault(); const f = e.target;
+  const body = {name:f.name.value, email:f.email.value, phone:f.phone.value, city:f.city.value, mandal:f.mandal.value};
+  if(!f.role.disabled) body.role = f.role.value;
+  if(f.newPassword.value) body.newPassword = f.newPassword.value;
+  try { await send('PATCH', '/api/admin/users/' + id, body); closeModal(); toast('User updated'); load(); } catch(err){ fail(err); }
+  return false;
+}
+async function toggleUser(id, active){ try { await send('PATCH', '/api/admin/users/' + id, {isActive:active}); toast(active ? 'Account activated' : 'Account suspended'); load(); } catch(e){ fail(e); } }
+async function delUser(id){ if(!confirm('Permanently delete this user? This cannot be undone.')) return; try { await send('DELETE', '/api/admin/users/' + id); toast('User deleted'); load(); } catch(e){ fail(e); } }
+
+/* ---------- providers ---------- */
+let editSvcs = [], editCats = [];
+async function vProviders(){
+  const f = filters.providers, qs = new URLSearchParams({q:f.q, category:f.category});
+  const {providers} = await call('/api/admin/providers?' + qs);
+  window._providers = providers;
+  $('#main').innerHTML = `<h1>Providers <span class="muted" style="font-size:14px">(${providers.length})</span></h1>
+  <div class="toolbar"><input class="field" id="pq" placeholder="Search name, city, phone" value="${safe(f.q)}" onkeydown="if(event.key==='Enter'){filters.providers.q=this.value;load()}">
+  <select class="field" onchange="filters.providers.category=this.value;load()"><option value="">All categories</option>${cats.map(c=>`<option value="${c.id}" ${f.category===c.id?'selected':''}>${c.icon} ${safe(c.name)}</option>`).join('')}</select>
+  <button class="btn" onclick="filters.providers.q=$('#pq').value;load()">Search</button></div>
+  <div class="tablewrap"><table><tr><th>ID</th><th>Name</th><th>Categories</th><th>City</th><th>Phone</th><th>Services</th><th>Rating</th><th>Bookings</th><th>Listing</th><th></th></tr>
+  ${providers.map((p,i)=>`<tr><td>${safe(p.id)}</td><td>${safe(p.name)}${p.ownerId?'':' <span class="pill">demo</span>'}</td><td>${p.categories.map(c=>catName(c).icon+' '+safe(catName(c).name)).join(', ')}</td>
+  <td>${safe(p.area)}</td><td>${safe(p.phone)}</td><td>${p.services.length}</td><td>${p.avgRating?p.avgRating.toFixed(1):'—'} (${p.reviewCount})</td><td>${p.bookingCount}</td>
+  <td><span class="pill ${p.active?'ok':'bad'}">${p.active?'Visible':'Hidden'}</span></td>
+  <td><div class="actions"><button class="btn sm" onclick="editProvider(${i})">Edit</button><button class="btn sm" onclick="toggleProvider('${p.id}',${!p.active})">${p.active?'Hide':'Show'}</button><button class="btn sm danger" onclick="delProvider('${p.id}')">Delete</button></div></td></tr>`).join('') || '<tr><td colspan="10" class="muted">No providers found.</td></tr>'}</table></div>`;
+}
+function editProvider(i){
+  const p = window._providers[i]; editSvcs = p.services.map(s => ({name:dec(s.name), price:s.price})); editCats = p.categories.slice();
+  modal(`<h2>Edit provider ${safe(p.id)}</h2><form onsubmit="return saveProvider(event,'${p.id}')">
+  <div class="two"><div class="fg"><label>Name</label><input class="field" name="name" value="${safe(p.name)}" required></div>
+  <div class="fg"><label>Phone</label><input class="field" name="phone" value="${safe(p.phone)}" required></div></div>
+  <div class="two"><div class="fg"><label>City</label><select class="field" name="area">${cities.map(c=>`<option ${c===p.area?'selected':''}>${safe(c)}</option>`).join('')}</select></div>
+  <div class="fg"><label>Mandal</label><input class="field" name="mandal" value="${safe(p.mandal)}"></div></div>
+  <div class="two"><div class="fg"><label>Street</label><input class="field" name="street" value="${safe(p.street)}"></div>
+  <div class="fg"><label>Pincode</label><input class="field" name="pincode" value="${safe(p.pincode)}" maxlength="10"></div></div>
+  <div class="fg"><label>Bio</label><textarea class="field" name="bio" rows="3">${safe(p.bio)}</textarea></div>
+  <div class="fg"><label>Categories</label><div class="chips" id="chips"></div></div>
+  <div class="fg"><label>Services & prices (₹)</label><div id="svcs"></div><button type="button" class="btn sm" onclick="syncSvcs();editSvcs.push({name:'',price:''});drawSvcs()">+ Add service</button></div>
+  <div class="actions" style="justify-content:flex-end"><button type="button" class="btn" onclick="closeModal()">Cancel</button><button class="btn primary">Save</button></div></form>`);
+  drawChips(); drawSvcs();
+}
+function drawChips(){ $('#chips').innerHTML = cats.map(c => `<span class="chip ${editCats.includes(c.id)?'on':''}" onclick="toggleCat('${c.id}')">${c.icon} ${safe(c.name)}</span>`).join(''); }
+function toggleCat(id){ const i = editCats.indexOf(id); i < 0 ? editCats.push(id) : editCats.splice(i,1); drawChips(); }
+function drawSvcs(){ $('#svcs').innerHTML = editSvcs.map((s,i) => `<div class="svc"><input class="field" style="flex:1" placeholder="Service name" value="${safe(s.name)}"><input class="field" type="number" min="0" placeholder="Price" value="${safe(s.price)}"><button type="button" class="btn sm danger" onclick="syncSvcs();editSvcs.splice(${i},1);drawSvcs()">×</button></div>`).join(''); }
+function syncSvcs(){ editSvcs = Array.from(document.querySelectorAll('#svcs .svc')).map(r => ({name:r.children[0].value, price:r.children[1].value})); }
+async function saveProvider(e, id){
+  e.preventDefault(); const f = e.target; syncSvcs();
+  const body = {name:f.name.value, phone:f.phone.value, area:f.area.value, mandal:f.mandal.value, street:f.street.value, pincode:f.pincode.value, bio:f.bio.value, categories:editCats, services:editSvcs.filter(s => s.name.trim() && s.price !== '')};
+  try { await send('PATCH', '/api/admin/providers/' + id, body); closeModal(); toast('Provider updated'); load(); } catch(err){ fail(err); }
+  return false;
+}
+async function toggleProvider(id, active){ try { await send('PATCH', '/api/admin/providers/' + id, {active}); toast(active ? 'Listing is visible' : 'Listing hidden from customers'); load(); } catch(e){ fail(e); } }
+async function delProvider(id){ if(!confirm('Permanently delete this provider listing?')) return; try { await send('DELETE', '/api/admin/providers/' + id); toast('Provider deleted'); load(); } catch(e){ fail(e); } }
+
+/* ---------- bookings ---------- */
+function bookingTable(rows, editable){
+  return `<div class="tablewrap"><table><tr><th>ID</th><th>Customer</th><th>Provider</th><th>Service</th><th>When</th><th>Amount</th><th>Payment</th><th>Stage</th>${editable?'<th></th>':''}</tr>
+  ${rows.map(b=>`<tr><td>${safe(b.id)}</td><td>${safe(b.customerName)}</td><td>${safe(b.providerName)}</td><td>${safe(b.serviceName)}</td><td>${safe(b.date)} ${safe(b.time)}</td><td>${inr(b.servicePrice)}</td>
+  <td><span class="pill ${b.paid?'ok':'warn'}">${b.paymentMethod==='cod'?'COD':'Card'}${b.paid?' · paid':''}</span></td>
+  <td>${editable?`<select class="field" onchange="setStage('${b.id}',this.value)">${STAGES.map(s=>`<option value="${s}" ${s===b.stage?'selected':''}>${s.replace('_',' ')}</option>`).join('')}</select>`:`<span class="pill">${b.stage.replace('_',' ')}</span>`}</td>
+  ${editable?`<td><button class="btn sm danger" onclick="delBooking('${b.id}')">Delete</button></td>`:''}</tr>`).join('') || `<tr><td colspan="9" class="muted">No bookings found.</td></tr>`}</table></div>`;
+}
+async function vBookings(){
+  const f = filters.bookings, qs = new URLSearchParams({q:f.q, stage:f.stage});
+  const {bookings} = await call('/api/admin/bookings?' + qs);
+  $('#main').innerHTML = `<h1>Bookings <span class="muted" style="font-size:14px">(${bookings.length})</span></h1>
+  <div class="toolbar"><input class="field" id="bq" placeholder="Search id, customer, provider, service" value="${safe(f.q)}" onkeydown="if(event.key==='Enter'){filters.bookings.q=this.value;load()}">
+  <select class="field" onchange="filters.bookings.stage=this.value;load()"><option value="">All stages</option>${STAGES.map(s=>`<option value="${s}" ${f.stage===s?'selected':''}>${s.replace('_',' ')}</option>`).join('')}</select>
+  <button class="btn" onclick="filters.bookings.q=$('#bq').value;load()">Search</button></div>${bookingTable(bookings, true)}`;
+}
+async function setStage(id, stage){ try { await send('PATCH', '/api/admin/bookings/' + id, {stage}); toast('Stage updated'); } catch(e){ fail(e); load(); } }
+async function delBooking(id){ if(!confirm('Delete booking ' + id + '?')) return; try { await send('DELETE', '/api/admin/bookings/' + id); toast('Booking deleted'); load(); } catch(e){ fail(e); } }
+
+/* ---------- reviews ---------- */
+async function vReviews(){
+  const {reviews} = await call('/api/admin/reviews');
+  $('#main').innerHTML = `<h1>Reviews <span class="muted" style="font-size:14px">(${reviews.length})</span></h1>
+  <div class="tablewrap"><table><tr><th>Date</th><th>Provider</th><th>Reviewer</th><th>Rating</th><th>Comment</th><th></th></tr>
+  ${reviews.map(r=>`<tr><td>${safe(r.date)}</td><td>${safe(r.providerName)}</td><td>${safe(r.name)}</td><td>${'★'.repeat(r.rating)}${'☆'.repeat(5-r.rating)}</td><td class="wrap">${safe(r.comment)}</td>
+  <td><button class="btn sm danger" onclick="delReview(${r.id})">Delete</button></td></tr>`).join('') || '<tr><td colspan="6" class="muted">No reviews.</td></tr>'}</table></div>`;
+}
+async function delReview(id){ if(!confirm('Delete this review?')) return; try { await send('DELETE', '/api/admin/reviews/' + id); toast('Review deleted'); load(); } catch(e){ fail(e); } }
+
+/* ---------- boot ---------- */
+async function boot(){
+  try {
+    const [c, ci] = await Promise.all([call('/api/categories'), call('/api/cities')]);
+    cats = c.categories; cities = ci.cities;
+  } catch(e){ return showLogin(e.message); }
+  shell(); await load();
+}
+(async function(){
+  try { const d = await call('/api/auth/me'); if(d.user && d.user.role === 'admin'){ me = d.user; return boot(); } showLogin(d.user ? 'Signed in as a non-admin account. Log in with an admin account.' : ''); }
+  catch(e){ showLogin(e.message); }
+})();
+</script>
+</body>
+</html>

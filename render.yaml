@@ -1,0 +1,25 @@
+services:
+  - type: web
+    name: radius
+    runtime: python
+    plan: free
+    buildCommand: pip install -r backend/requirements.txt
+    startCommand: gunicorn --chdir backend -w 2 -b 0.0.0.0:$PORT app:app
+    envVars:
+      - key: PYTHON_VERSION
+        value: 3.12.3
+      - key: SECRET_KEY
+        generateValue: true
+      - key: SESSION_COOKIE_SECURE
+        value: "1"
+      - key: ADMIN_EMAIL
+        value: admin@radius.local
+      - key: ADMIN_PASSWORD
+        sync: false        # you will be asked to type this in the Render dashboard
+      - key: DATABASE_URL
+        fromDatabase:
+          name: radius-db
+          property: connectionString
+databases:
+  - name: radius-db
+    plan: free
