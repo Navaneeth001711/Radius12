@@ -9,7 +9,6 @@ from config import Config
 from extensions import db
 from seed import seed_admin, seed_if_empty
 
-# Import models so SQLAlchemy registers them before db.create_all() runs.
 import models  # noqa: F401
 
 from routes_admin import bp as admin_bp
@@ -36,7 +35,6 @@ def migrate_schema():
 
     for table, columns in _NEW_COLUMNS.items():
 
-        # Skip migration if table does not exist yet.
         if table not in inspector.get_table_names():
             continue
 
@@ -54,10 +52,65 @@ def migrate_schema():
                             f"ADD COLUMN {name} {ddl}"
                         )
                     )
-                except Exception:
+                except Exception as e:
+                    print(
+                        f"Migration warning for {table}.{name}: {e}"
+                    )
                     db.session.rollback()
 
         db.session.commit()
+
+
+def configure_database(app):
+
+    database_url = os.environ.get("DATABASE_URL")
+
+    # ---------------------------------------------------------
+    # Production: PostgreSQL
+    # ---------------------------------------------------------
+    if database_url:
+
+        if database_url.startswith("postgres://"):
+            database_url = database_url.replace(
+                "postgres://",
+                "postgresql://",
+                1,
+            )
+
+        app.config["SQLALCHEMY_DATABASE_URI"] = database_url
+
+        print("Using PostgreSQL database")
+
+    # ---------------------------------------------------------
+    # Vercel fallback: temporary SQLite
+    # ---------------------------------------------------------
+    elif os.environ.get("VERCEL"):
+
+        database_path = "/tmp/radius.db"
+
+        app.config["SQLALCHEMY_DATABASE_URI"] = (
+            "sqlite:///" + database_path
+        )
+
+        print("WARNING: Using temporary Vercel SQLite database")
+
+    # ---------------------------------------------------------
+    # Local development
+    # ---------------------------------------------------------
+    else:
+
+        database_path = os.path.join(
+            os.path.dirname(os.path.abspath(__file__)),
+            "radius.db",
+        )
+
+        app.config["SQLALCHEMY_DATABASE_URI"] = (
+            "sqlite:///" + database_path
+        )
+
+        print("Using local SQLite database")
+
+    app.config["SQLALCHEMY_TRACK_MODIFICATIONS"] = False
 
 
 def create_app():
@@ -76,54 +129,8 @@ def create_app():
 
     app.config.from_object(Config)
 
-    # ---------------------------------------------------------
-    # VERCEL SQLITE FIX
-    # ---------------------------------------------------------
-    #
-    # Vercel's normal filesystem is read-only.
-    # If DATABASE_URL is not configured, use /tmp for SQLite.
-    #
-    # NOTE:
-    # /tmp database is temporary on Vercel.
-    # For permanent production data, use PostgreSQL.
-    # ---------------------------------------------------------
-
-    database_url = os.environ.get("DATABASE_URL")
-
-    if not database_url:
-
-        # Use temporary writable directory on Vercel
-        if os.environ.get("VERCEL"):
-            database_path = "/tmp/radius.db"
-        else:
-            database_path = os.path.join(
-                os.path.dirname(os.path.abspath(__file__)),
-                "radius.db",
-            )
-
-        app.config["SQLALCHEMY_DATABASE_URI"] = (
-            "sqlite:///" + database_path
-        )
-
-    else:
-        # PostgreSQL / external database
-        #
-        # Some providers return postgres://
-        # SQLAlchemy expects postgresql://
-        if database_url.startswith("postgres://"):
-            database_url = database_url.replace(
-                "postgres://",
-                "postgresql://",
-                1,
-            )
-
-        app.config["SQLALCHEMY_DATABASE_URI"] = database_url
-
-    # ---------------------------------------------------------
-    # Connection settings
-    # ---------------------------------------------------------
-
-    app.config["SQLALCHEMY_TRACK_MODIFICATIONS"] = False
+    # Configure database AFTER loading Config
+    configure_database(app)
 
     app.wsgi_app = ProxyFix(
         app.wsgi_app,
@@ -149,7 +156,7 @@ def create_app():
     db.init_app(app)
 
     # ---------------------------------------------------------
-    # Routes
+    # Blueprints
     # ---------------------------------------------------------
 
     app.register_blueprint(auth_bp)
@@ -159,20 +166,37 @@ def create_app():
     app.register_blueprint(admin_bp)
 
     # ---------------------------------------------------------
-    # Health check
-    # ---------------------------------------------------------
-
-    @app.route("/api/health")
-    def health():
-        return jsonify(status="ok")
-
-    # ---------------------------------------------------------
     # Home
     # ---------------------------------------------------------
 
     @app.route("/")
     def home():
         return redirect("/Radius.html")
+
+    # ---------------------------------------------------------
+    # Health check
+    # ---------------------------------------------------------
+
+    @app.route("/api/health")
+    def health():
+
+        try:
+            with db.engine.connect() as connection:
+                connection.execute(text("SELECT 1"))
+
+            return jsonify(
+                status="ok",
+                database="connected"
+            )
+
+        except Exception as e:
+
+            print("Database health error:", e)
+
+            return jsonify(
+                status="error",
+                database="not connected"
+            ), 500
 
     # ---------------------------------------------------------
     # Error handlers
@@ -188,12 +212,15 @@ def create_app():
 
     @app.errorhandler(500)
     def server_error(_e):
+
         try:
             db.session.rollback()
         except Exception:
             pass
 
-        return jsonify(error="Internal server error"), 500
+        return jsonify(
+            error="Internal server error"
+        ), 500
 
     # ---------------------------------------------------------
     # Database initialization
@@ -202,17 +229,23 @@ def create_app():
     with app.app_context():
 
         try:
+
             db.create_all()
+
             migrate_schema()
 
-            # Seed data
             seed_if_empty()
+
             seed_admin()
 
+            print("Database initialization completed")
+
         except Exception as e:
-            # Do not crash the complete Vercel function
-            # if database initialization fails.
-            print("Database initialization error:", e)
+
+            print(
+                "Database initialization error:",
+                e
+            )
 
             try:
                 db.session.rollback()
@@ -223,7 +256,7 @@ def create_app():
 
 
 # -------------------------------------------------------------
-# Vercel / WSGI entry point
+# WSGI application
 # -------------------------------------------------------------
 
 app = create_app()
@@ -234,6 +267,7 @@ app = create_app()
 # -------------------------------------------------------------
 
 if __name__ == "__main__":
+
     app.run(
         host="127.0.0.1",
         port=5000,
