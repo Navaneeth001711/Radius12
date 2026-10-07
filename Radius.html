@@ -431,8 +431,14 @@ const DB = {
    required on every call so the session cookie (login state) is sent. */
 /* Use the same hostname the page was opened on (127.0.0.1 vs localhost) so the
    login cookie is treated as same-site and is actually sent to the API. */
-const API_BASE = (location.protocol === 'file:') ? 'http://localhost:5000'
-  : (location.port === '5500' ? location.protocol + '//' + location.hostname + ':5000' : '');
+const API_BASE =
+  window.location.hostname.includes('vercel.app')
+    ? window.location.origin
+    : (location.protocol === 'file:'
+        ? 'http://localhost:5000'
+        : (location.port === '5500'
+            ? location.protocol + '//' + location.hostname + ':5000'
+            : window.location.origin));
 
 /* Strip spaces/+91/dashes so the backend always gets a plain 10-digit number. */
 function normPhone(v){
@@ -2212,22 +2218,70 @@ function render(){
 /* Loads session + provider directory from the Flask API before the first
    render, replacing the old "everything is a hardcoded array" startup. */
 async function init(){
-  document.getElementById('app').innerHTML = `<div class="container section empty-state">Loading Radius…</div>`;
+  document.getElementById('app').innerHTML =
+    `<div class="container section empty-state">Loading Radius…</div>`;
+
   try{
-    const me = await api.me();
-    DB.currentUser = me.user;
+    let me = null;
+
+    try{
+      me = await api.me();
+    }catch(err){
+      const msg = String(err.message || '');
+
+      // 401 means user is simply not logged in.
+      // It is NOT a backend connection error.
+      if(
+        !msg.includes('401') &&
+        !msg.toLowerCase().includes('unauthorized')
+      ){
+        throw err;
+      }
+    }
+
+    DB.currentUser = me ? me.user : null;
+
     await refreshProviders();
-    await refreshBookings();
+
+    if(DB.currentUser){
+      await refreshBookings();
+    }else{
+      DB.bookings = [];
+    }
+
   }catch(err){
-    document.getElementById('app').innerHTML = `<div class="container section empty-state">
-      Could not reach the Radius API at <span class="mono">${API_BASE}</span>.<br/><br/>
-      Make sure the Flask backend is running (run <span class="mono">python start.py</span>),
-      and that this page is served from an origin listed in its <span class="mono">CORS_ORIGINS</span>
-      (not opened directly as a <span class="mono">file://</span> URL).<br/><br/>
-      <button class="btn btn-primary" onclick="init()">Retry</button>
-    </div>`;
+    console.error('Radius startup error:', err);
+
+    document.getElementById('app').innerHTML = `
+      <div class="container section empty-state">
+
+        <h2 style="color:var(--danger);">
+          Radius API Connection Error
+        </h2>
+
+        <p>
+          ${err.message || 'Unable to connect to the backend.'}
+        </p>
+
+        <p class="provider-meta">
+          API:
+          <span class="mono">
+            ${API_BASE || window.location.origin}
+          </span>
+        </p>
+
+        <button
+          class="btn btn-primary"
+          onclick="init()">
+          Retry
+        </button>
+
+      </div>
+    `;
+
     return;
   }
+
   render();
 }
 
