@@ -550,7 +550,11 @@ function starsDisplay(rating){
   return '<span class="stars">' + '★'.repeat(full) + '☆'.repeat(5-full) + '</span>';
 }
 function fmt(n){ return '₹'+n; }
-function minPrice(p){ return p.services && p.services.length ? minPrice(p) : 0; }
+function minPrice(p){
+  return p.services && p.services.length
+    ? Math.min(...p.services.map(s => Number(s.price) || 0))
+    : 0;
+}
 
 /* Renders a circular avatar — a profile photo (data URL) if provided, otherwise initials.
    Used for both customer/worker profile DPs and provider card avatars. */
@@ -2221,54 +2225,45 @@ async function init(){
   document.getElementById('app').innerHTML =
     `<div class="container section empty-state">Loading Radius…</div>`;
 
-  try{
-    let me = null;
-
-    try{
-      me = await api.me();
-    }catch(err){
-      const msg = String(err.message || '');
-
-      // 401 means user is simply not logged in.
-      // It is NOT a backend connection error.
-      if(
-        !msg.includes('401') &&
-        !msg.toLowerCase().includes('unauthorized')
-      ){
-        throw err;
-      }
+  try {
+    // Login check
+    try {
+      const me = await api.me();
+      DB.currentUser = me.user;
+    } catch (err) {
+      // Not logged in is okay
+      DB.currentUser = null;
     }
 
-    DB.currentUser = me ? me.user : null;
-
+    // Load providers
     await refreshProviders();
 
-    if(DB.currentUser){
-      await refreshBookings();
-    }else{
+    // Don't load bookings for guest users
+    if (DB.currentUser) {
+      try {
+        await refreshBookings();
+      } catch (err) {
+        console.error("Bookings error:", err);
+        DB.bookings = [];
+      }
+    } else {
       DB.bookings = [];
     }
 
-  }catch(err){
-    console.error('Radius startup error:', err);
+    // Show website
+    render();
+
+  } catch (err) {
+    console.error("Radius startup error:", err);
 
     document.getElementById('app').innerHTML = `
       <div class="container section empty-state">
 
         <h2 style="color:var(--danger);">
-          Radius API Connection Error
+          Radius Error
         </h2>
 
-        <p>
-          ${err.message || 'Unable to connect to the backend.'}
-        </p>
-
-        <p class="provider-meta">
-          API:
-          <span class="mono">
-            ${API_BASE || window.location.origin}
-          </span>
-        </p>
+        <p>${err.message || "Unknown error"}</p>
 
         <button
           class="btn btn-primary"
@@ -2278,13 +2273,8 @@ async function init(){
 
       </div>
     `;
-
-    return;
   }
-
-  render();
 }
-
 init();
 </script>
 </body>
